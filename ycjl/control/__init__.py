@@ -27,6 +27,15 @@ from .scheduler import (
     ReservoirScheduler,
     FloodHydrograph
 )
+from .ice_strategy import (
+    IceOperationMode,
+    IceAlarmLevel,
+    IceOperationConstraints,
+    IceControlDecision,
+    IcePeriodController,
+    IceFlowRateLimiter,
+    IceMonitor
+)
 
 __all__ = [
     # 经典控制
@@ -50,5 +59,13 @@ __all__ = [
     'SupplyScheduler',
     'FloodDispatcher',
     'ReservoirScheduler',
-    'FloodHydrograph'
+    'FloodHydrograph',
+    # 冰期控制
+    'IceOperationMode',
+    'IceAlarmLevel',
+    'IceOperationConstraints',
+    'IceControlDecision',
+    'IcePeriodController',
+    'IceFlowRateLimiter',
+    'IceMonitor'
 ]

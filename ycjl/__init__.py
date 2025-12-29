@@ -5,12 +5,15 @@
 产品化重构版本：包含完整的水动力学仿真、多层级智能体控制、
 场景识别和全自主运行能力。
 
-版本: 3.2.0 - 配置数据库升级版
+版本: 3.3.0 - 冰期模型升级版
 - 完整工程参数数据库 (config_database)
 - 数字化特性曲线 (Hill Chart, 流阻曲线等)
 - 水轮机电站模型
 - 兴利调度逻辑
 - 工程部署接口
+- 冰期水力学参数库 (IAHR/ASCE标准)
+- 冰期物理模型 (Stefan方程, Belokon-Sabaneev复合糙率)
+- 冰期控制策略 (运行模式识别, 约束管理, 安全保护)
 
 模块结构:
 - config: 全局配置参数与工程数据库
@@ -26,7 +29,7 @@
 - deployment: 工程部署接口
 """
 
-__version__ = "3.2.0"
+__version__ = "3.3.0"
 __author__ = "YCJL Control Team"
 
 # 原有配置
@@ -39,6 +42,15 @@ from .config.config_database import (
     CurveDatabase,
     SourceConfig,
     GlobalConfig
+)
+
+# 冰期参数
+from .config.ice_parameters import (
+    IceParams,
+    IceType,
+    IcePhase,
+    BreakupType,
+    IceHydraulicsConfig
 )
 
 # 部署接口
@@ -89,6 +101,12 @@ __all__ = [
     'CurveDatabase',
     'SourceConfig',
     'GlobalConfig',
+    # 冰期参数
+    'IceParams',
+    'IceType',
+    'IcePhase',
+    'BreakupType',
+    'IceHydraulicsConfig',
     # 部署
     'DeploymentManager',
     'DeploymentEnvironment',

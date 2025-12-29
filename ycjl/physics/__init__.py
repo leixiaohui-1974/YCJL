@@ -17,7 +17,7 @@
 
 from .reservoir import Reservoir
 from .reservoir_v2 import WendegenReservoir, ReservoirStateV2, SpillwayGateState
-from .tunnel import TunnelSolver
+from .tunnel import TunnelSolver, Tunnel, TunnelState
 from .pool import StabilizingPool
 from .surge_tank import SurgeTank
 from .pipeline import PipelineMOC
@@ -47,11 +47,24 @@ from .turbine import (
     PowerStation,
     HillChartInterpolator
 )
+from .ice_model import (
+    IceState,
+    ChannelGeometry,
+    MeteoCondition,
+    IceThicknessModel,
+    IceCoverHydraulics,
+    FrazilIceModel,
+    IceCoverFormation,
+    BreakupModel,
+    IcePeriodSimulator
+)
 
 __all__ = [
     # 原有模型
     'Reservoir',
     'TunnelSolver',
+    'Tunnel',  # 向后兼容别名
+    'TunnelState',
     'StabilizingPool',
     'SurgeTank',
     'PipelineMOC',
@@ -79,5 +92,15 @@ __all__ = [
     'TurbineType',
     'TurbineSpec',
     'PowerStation',
-    'HillChartInterpolator'
+    'HillChartInterpolator',
+    # 冰期模型
+    'IceState',
+    'ChannelGeometry',
+    'MeteoCondition',
+    'IceThicknessModel',
+    'IceCoverHydraulics',
+    'FrazilIceModel',
+    'IceCoverFormation',
+    'BreakupModel',
+    'IcePeriodSimulator'
 ]

@@ -55,6 +55,35 @@ from .config_database import (
     create_interpolator
 )
 
+# 冰期参数数据库 v3.3
+from .ice_parameters import (
+    IceType,
+    IcePhase,
+    BreakupType,
+    IcePhysicalProperties,
+    StefanEquationParams,
+    CompositeRoughnessParams,
+    FrazilIceParams,
+    AnchorIceParams,
+    IceCoverFormationParams,
+    IceJamParams,
+    BreakupCriteriaParams,
+    ThermalExchangeParams,
+    YCJLIcePeriodParams,
+    IceHydraulicsConfig,
+    IceParams,
+    IcePhysical,
+    StefanParams,
+    RoughnessParams,
+    FrazilParams,
+    AnchorParams,
+    CoverParams,
+    JamParams,
+    BreakupParams,
+    ThermalParams,
+    YCJLIceParams
+)
+
 __all__ = [
     # 原有配置
     'Config',
@@ -93,5 +122,31 @@ __all__ = [
     'UserConfig',
     'HardwareConfig',
     'HydroConfig',
-    'create_interpolator'
+    'create_interpolator',
+    # 冰期参数数据库
+    'IceType',
+    'IcePhase',
+    'BreakupType',
+    'IcePhysicalProperties',
+    'StefanEquationParams',
+    'CompositeRoughnessParams',
+    'FrazilIceParams',
+    'AnchorIceParams',
+    'IceCoverFormationParams',
+    'IceJamParams',
+    'BreakupCriteriaParams',
+    'ThermalExchangeParams',
+    'YCJLIcePeriodParams',
+    'IceHydraulicsConfig',
+    'IceParams',
+    'IcePhysical',
+    'StefanParams',
+    'RoughnessParams',
+    'FrazilParams',
+    'AnchorParams',
+    'CoverParams',
+    'JamParams',
+    'BreakupParams',
+    'ThermalParams',
+    'YCJLIceParams'
 ]
