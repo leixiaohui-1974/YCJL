@@ -1,32 +1,84 @@
 """
-多层级智能体系统
-================
+L5级自主运行智能体模块
+======================
 
-三层分布式控制架构:
-- L1 Reflex Agents: 毫秒级安全响应
-- L2 Tactical Agents: 基于MPC的管段优化
-- L3 Strategic Agent: 多目标经济调度
+实现引绰济辽工程L5级全自主运行能力:
+- 态势感知智能体
+- 决策规划智能体
+- 执行控制智能体
+- 协调管理智能体
+- 学习优化智能体
 
-协同算法:
-- ADMM分布式优化
-- 事件触发通信
+L5级定义: 全工况全自主,无需人工干预
+
+版本: 3.4.0
 """
 
-from .base_agent import BaseAgent, AgentState, AgentMessage
-from .reflex_agent import ReflexAgent, SafetyRule
-from .tactical_agent import TacticalAgent, MPCController
-from .strategic_agent import StrategicAgent
-from .coordinator import ADMMCoordinator, CommunicationHub
+from .l5_autonomous import (
+    # 智能等级
+    AutonomyLevel,
+    AgentRole,
+    AgentStatus,
+    # 智能体
+    SituationAwarenessAgent,
+    DecisionPlanningAgent,
+    ExecutionControlAgent,
+    CoordinationAgent,
+    LearningAgent,
+    # L5系统
+    L5AutonomousSystem,
+    L5SystemState,
+    L5Decision,
+    # 工厂函数
+    create_l5_system
+)
+
+from .emergency_agent import (
+    EmergencyLevel,
+    EmergencyType,
+    EmergencyState,
+    EmergencyResponse,
+    EmergencyAgent,
+    create_emergency_agent
+)
+
+from .fault_tolerance import (
+    FaultType,
+    FaultState,
+    RedundancyMode,
+    FaultToleranceManager,
+    ComponentHealth,
+    SystemResilience
+)
 
 __all__ = [
-    'BaseAgent',
-    'AgentState',
-    'AgentMessage',
-    'ReflexAgent',
-    'SafetyRule',
-    'TacticalAgent',
-    'MPCController',
-    'StrategicAgent',
-    'ADMMCoordinator',
-    'CommunicationHub'
+    # 智能等级
+    'AutonomyLevel',
+    'AgentRole',
+    'AgentStatus',
+    # 智能体
+    'SituationAwarenessAgent',
+    'DecisionPlanningAgent',
+    'ExecutionControlAgent',
+    'CoordinationAgent',
+    'LearningAgent',
+    # L5系统
+    'L5AutonomousSystem',
+    'L5SystemState',
+    'L5Decision',
+    'create_l5_system',
+    # 应急
+    'EmergencyLevel',
+    'EmergencyType',
+    'EmergencyState',
+    'EmergencyResponse',
+    'EmergencyAgent',
+    'create_emergency_agent',
+    # 容错
+    'FaultType',
+    'FaultState',
+    'RedundancyMode',
+    'FaultToleranceManager',
+    'ComponentHealth',
+    'SystemResilience'
 ]
