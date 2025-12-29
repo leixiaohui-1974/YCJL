@@ -265,5 +265,195 @@ class TestScenarioHandlers:
         assert scenario in [ScenarioType.NORMAL, ScenarioType.DEMAND_SURGE]
 
 
+# ============================================
+# v3.4.0 场景数据库和引擎测试
+# ============================================
+
+from ycjl.scenarios.scenario_database import (
+    ScenarioCategory, ScenarioSeverity, ScenarioType as ScenarioTypeV2,
+    ScenarioDefinition, ScenarioDatabase, SCENARIO_DB
+)
+from ycjl.scenarios.scenario_engine import (
+    ScenarioState, ScenarioEvent, ScenarioDetector as ScenarioDetectorV2,
+    ScenarioClassifier as ScenarioClassifierV2, ScenarioEngine
+)
+
+
+class TestScenarioDatabase:
+    """v3.4.0 场景数据库测试"""
+
+    def test_database_initialization(self):
+        """测试数据库初始化"""
+        db = ScenarioDatabase()
+        assert len(db.scenarios) > 0
+
+    def test_scenario_categories(self):
+        """测试场景类别"""
+        categories = list(ScenarioCategory)
+        assert len(categories) == 10
+        assert ScenarioCategory.NORMAL in categories
+        assert ScenarioCategory.LONG_TAIL in categories
+
+    def test_get_scenario(self):
+        """测试获取场景"""
+        scenario = SCENARIO_DB.get_scenario(ScenarioTypeV2.STEADY_STATE)
+        assert scenario is not None
+        assert scenario.category == ScenarioCategory.NORMAL
+
+    def test_get_scenarios_by_category(self):
+        """测试按类别获取场景"""
+        normal_scenarios = SCENARIO_DB.get_scenarios_by_category(ScenarioCategory.NORMAL)
+        assert len(normal_scenarios) > 0
+        for s in normal_scenarios:
+            assert s.category == ScenarioCategory.NORMAL
+
+    def test_scenario_severity_levels(self):
+        """测试场景严重等级"""
+        severities = list(ScenarioSeverity)
+        assert ScenarioSeverity.NORMAL in severities
+        assert ScenarioSeverity.EMERGENCY in severities
+        # 严重等级应该有序
+        assert ScenarioSeverity.NORMAL.value < ScenarioSeverity.EMERGENCY.value
+
+    def test_equipment_fault_scenarios(self):
+        """测试设备故障场景"""
+        fault_scenarios = SCENARIO_DB.get_scenarios_by_category(ScenarioCategory.EQUIPMENT_FAULT)
+        assert len(fault_scenarios) > 0
+        # 故障场景应该有较高严重等级
+        for s in fault_scenarios:
+            assert s.severity.value >= ScenarioSeverity.WARNING.value
+
+    def test_scenario_responses(self):
+        """测试场景响应策略"""
+        scenario = SCENARIO_DB.get_scenario(ScenarioTypeV2.FAULT_VALVE_STUCK)
+        if scenario:
+            assert len(scenario.responses) > 0
+
+    def test_all_categories_have_scenarios(self):
+        """测试所有类别都有场景"""
+        for category in ScenarioCategory:
+            scenarios = SCENARIO_DB.get_scenarios_by_category(category)
+            assert len(scenarios) > 0, f"类别 {category} 没有场景"
+
+
+class TestScenarioEngine:
+    """v3.4.0 场景引擎测试"""
+
+    def test_engine_initialization(self):
+        """测试引擎初始化"""
+        engine = ScenarioEngine()
+        assert engine.detector is not None
+        assert engine.classifier is not None
+
+    def test_scenario_detection(self):
+        """测试场景检测"""
+        engine = ScenarioEngine()
+
+        # 模拟正常状态数据
+        measurements = {
+            'flow': 10.0,
+            'pressure': 50.0,
+            'level': 5.0,
+            'temperature': 15.0
+        }
+
+        result = engine.update(measurements)
+        assert result is not None
+
+    def test_scenario_state_management(self):
+        """测试场景状态管理"""
+        engine = ScenarioEngine()
+
+        # 获取活动场景
+        active = engine.get_active_scenarios()
+        assert isinstance(active, list)
+
+    def test_detector_threshold_triggers(self):
+        """测试检测器阈值触发"""
+        detector = ScenarioDetectorV2()
+
+        # 正常条件
+        measurements = {
+            'flow': 10.0,
+            'pressure': 50.0
+        }
+        # 检测所有场景
+        result = detector.detect_all_scenarios(measurements)
+        assert isinstance(result, list)
+
+    def test_classifier_scenario_classification(self):
+        """测试分类器场景分类"""
+        classifier = ScenarioClassifierV2()
+
+        # 分类测试 - 需要传入检测结果列表
+        detected = [(ScenarioTypeV2.NORMAL_STEADY, 0.9, {})]
+        result = classifier.classify(detected, {})
+        assert result is not None
+
+    def test_scenario_state_creation(self):
+        """测试场景状态创建"""
+        from datetime import datetime
+        state = ScenarioState(
+            scenario_type=ScenarioTypeV2.NORMAL_STEADY,
+            start_time=datetime.now(),
+            confidence=0.95
+        )
+        assert state.scenario_type == ScenarioTypeV2.NORMAL_STEADY
+        assert state.confidence == 0.95
+
+    def test_scenario_event_creation(self):
+        """测试场景事件创建"""
+        from datetime import datetime
+        event = ScenarioEvent(
+            event_id="TEST_001",
+            scenario_type=ScenarioTypeV2.NORMAL_STEADY,
+            event_type="detected",
+            timestamp=datetime.now()
+        )
+        assert event.event_id == "TEST_001"
+        assert event.event_type == "detected"
+
+    def test_engine_statistics(self):
+        """测试引擎统计"""
+        engine = ScenarioEngine()
+
+        # 处理多个测量
+        for i in range(10):
+            measurements = {
+                'flow': 10.0 + i * 0.1,
+                'pressure': 50.0
+            }
+            engine.update(measurements)
+
+        # 检查统计
+        stats = engine.get_statistics()
+        assert isinstance(stats, dict)
+
+
+class TestScenarioIntegration:
+    """场景系统集成测试"""
+
+    def test_database_engine_integration(self):
+        """测试数据库与引擎集成"""
+        engine = ScenarioEngine()
+
+        # 获取场景定义
+        scenario_def = SCENARIO_DB.get_scenario(ScenarioTypeV2.NORMAL_STEADY)
+        assert scenario_def is not None
+
+        # 引擎应该能处理
+        result = engine.update({'flow': 10.0})
+        assert result is not None
+
+    def test_long_tail_scenarios_coverage(self):
+        """测试长尾场景覆盖"""
+        long_tail = SCENARIO_DB.get_scenarios_by_category(ScenarioCategory.LONG_TAIL)
+        assert len(long_tail) > 0
+
+        # 长尾场景应该有高严重等级
+        for s in long_tail:
+            assert s.severity.value >= ScenarioSeverity.WARNING.value
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])

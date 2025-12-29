@@ -315,3 +315,7 @@ class TunnelSolver:
         self.h = state[:self.N]
         self.Q = state[self.N:]
         self.A = self._compute_area(self.h)
+
+
+# 向后兼容别名
+Tunnel = TunnelSolver

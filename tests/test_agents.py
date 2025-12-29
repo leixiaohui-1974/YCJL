@@ -253,5 +253,349 @@ class TestCommunicationHub:
         assert stats['total_messages'] == 1
 
 
+# ============================================
+# v3.4.0 L5自主系统和应急容错测试
+# ============================================
+
+from ycjl.agents.l5_autonomous import (
+    AutonomyLevel, AgentRole, AgentStatus,
+    SituationAwarenessAgent, DecisionPlanningAgent, ExecutionControlAgent,
+    CoordinationAgent, LearningAgent,
+    L5AutonomousSystem, L5SystemState, L5Decision,
+    create_l5_system
+)
+from ycjl.agents.emergency_agent import (
+    EmergencyLevel, EmergencyType, EmergencyState, EmergencyResponse,
+    EmergencyAgent, create_emergency_agent
+)
+from ycjl.agents.fault_tolerance import (
+    FaultType, FaultState, RedundancyMode,
+    FaultToleranceManager, ComponentHealth, SystemResilience
+)
+from ycjl.scenarios.scenario_database import ScenarioType as ScenarioTypeV2, ScenarioSeverity
+
+
+class TestL5AutonomousSystem:
+    """L5自主运行系统测试"""
+
+    def test_system_initialization(self):
+        """测试系统初始化"""
+        system = create_l5_system()
+        assert system is not None
+        assert system.state.autonomy_level == AutonomyLevel.L5_FULL
+
+    def test_autonomy_levels(self):
+        """测试自主等级"""
+        levels = list(AutonomyLevel)
+        assert len(levels) == 6
+        assert AutonomyLevel.L0_MANUAL in levels
+        assert AutonomyLevel.L5_FULL in levels
+
+    def test_agent_roles(self):
+        """测试智能体角色"""
+        roles = list(AgentRole)
+        assert AgentRole.AWARENESS in roles
+        assert AgentRole.PLANNING in roles
+        assert AgentRole.EXECUTION in roles
+        assert AgentRole.COORDINATION in roles
+        assert AgentRole.LEARNING in roles
+
+    def test_situation_awareness_agent(self):
+        """测试态势感知智能体"""
+        agent = SituationAwarenessAgent()
+        assert agent.role == AgentRole.AWARENESS
+
+        # 处理感知数据
+        measurements = {
+            'flow': 10.0,
+            'pressure': 50.0,
+            'level': 5.0
+        }
+        result = agent.process(measurements, 0.0)
+        assert result is not None
+
+    def test_decision_planning_agent(self):
+        """测试决策规划智能体"""
+        agent = DecisionPlanningAgent()
+        assert agent.role == AgentRole.PLANNING
+
+        # 处理决策
+        situation = {
+            'current_scenario': 'normal',
+            'risk_level': 0.1
+        }
+        result = agent.process(situation, 0.0)
+        assert result is not None
+
+    def test_execution_control_agent(self):
+        """测试执行控制智能体"""
+        agent = ExecutionControlAgent()
+        assert agent.role == AgentRole.EXECUTION
+
+        # 处理执行
+        decision = {
+            'action': 'maintain',
+            'target_flow': 10.0
+        }
+        result = agent.process(decision, 0.0)
+        assert result is not None
+
+    def test_coordination_agent(self):
+        """测试协调管理智能体"""
+        agent = CoordinationAgent()
+        assert agent.role == AgentRole.COORDINATION
+
+    def test_learning_agent(self):
+        """测试学习优化智能体"""
+        agent = LearningAgent()
+        assert agent.role == AgentRole.LEARNING
+
+    def test_l5_system_cycle(self):
+        """测试L5系统循环"""
+        system = create_l5_system()
+
+        # 输入测量数据
+        measurements = {
+            'flow': 10.0,
+            'pressure': 50.0,
+            'level': 5.0,
+            'temperature': 15.0
+        }
+
+        # 运行一个周期
+        result = system.process_cycle(measurements)
+        assert result is not None
+
+    def test_l5_system_state(self):
+        """测试L5系统状态"""
+        system = create_l5_system()
+
+        state = system.get_state_summary()
+        assert isinstance(state, dict)
+        assert 'autonomy_level' in state
+
+    def test_autonomy_level_change(self):
+        """测试自主等级切换"""
+        system = create_l5_system()
+
+        # 初始应该是L5
+        assert system.state.autonomy_level == AutonomyLevel.L5_FULL
+
+        # 降级测试
+        system.set_autonomy_level(AutonomyLevel.L3_CONDITIONAL)
+        assert system.state.autonomy_level == AutonomyLevel.L3_CONDITIONAL
+
+
+class TestEmergencyAgent:
+    """应急响应智能体测试"""
+
+    def test_agent_initialization(self):
+        """测试智能体初始化"""
+        agent = create_emergency_agent()
+        assert agent is not None
+
+    def test_emergency_levels(self):
+        """测试应急等级"""
+        levels = list(EmergencyLevel)
+        assert EmergencyLevel.GREEN in levels
+        assert EmergencyLevel.RED in levels
+        # 等级应该有序
+        assert EmergencyLevel.GREEN.value < EmergencyLevel.RED.value
+
+    def test_emergency_types(self):
+        """测试应急类型"""
+        types = list(EmergencyType)
+        assert EmergencyType.EQUIPMENT in types
+        assert EmergencyType.SAFETY in types
+        assert EmergencyType.NATURAL in types
+
+    def test_emergency_detection(self):
+        """测试应急检测"""
+        agent = create_emergency_agent()
+
+        # 创建应急事件
+        emergency = agent.detect_emergency(
+            ScenarioTypeV2.FAULT_VALVE_STUCK,
+            ScenarioSeverity.CRITICAL,
+            {'description': '测试阀门故障', 'affected': ['valve_1']}
+        )
+
+        assert emergency is not None
+        assert emergency.is_active
+
+    def test_emergency_response_generation(self):
+        """测试应急响应生成"""
+        agent = create_emergency_agent()
+
+        emergency = agent.detect_emergency(
+            ScenarioTypeV2.FAULT_PUMP_TRIP,
+            ScenarioSeverity.ALARM,
+            {'description': '泵跳闸'}
+        )
+
+        if emergency:
+            response = agent.generate_response(emergency)
+            assert response is not None
+            assert len(response.actions) > 0
+
+    def test_emergency_close(self):
+        """测试应急关闭"""
+        agent = create_emergency_agent()
+
+        emergency = agent.detect_emergency(
+            ScenarioTypeV2.FAULT_SENSOR_DRIFT,
+            ScenarioSeverity.ALARM,
+            {'description': '传感器漂移'}
+        )
+
+        if emergency:
+            agent.close_emergency(emergency.emergency_id, "已修复")
+            assert emergency.emergency_id not in agent.active_emergencies
+
+    def test_get_active_emergencies(self):
+        """测试获取活动应急"""
+        agent = create_emergency_agent()
+
+        # 创建多个应急
+        agent.detect_emergency(
+            ScenarioTypeV2.FAULT_VALVE_STUCK,
+            ScenarioSeverity.CRITICAL,
+            {'description': '阀门故障1'}
+        )
+        agent.detect_emergency(
+            ScenarioTypeV2.FAULT_PUMP_TRIP,
+            ScenarioSeverity.ALARM,
+            {'description': '泵故障'}
+        )
+
+        active = agent.get_active_emergencies()
+        assert len(active) >= 2
+
+
+class TestFaultTolerance:
+    """故障容错系统测试"""
+
+    def test_manager_initialization(self):
+        """测试管理器初始化"""
+        manager = FaultToleranceManager()
+        assert len(manager.components) > 0
+
+    def test_fault_types(self):
+        """测试故障类型"""
+        types = list(FaultType)
+        assert FaultType.SENSOR in types
+        assert FaultType.ACTUATOR in types
+        assert FaultType.COMMUNICATION in types
+
+    def test_redundancy_modes(self):
+        """测试冗余模式"""
+        modes = list(RedundancyMode)
+        assert RedundancyMode.COLD_STANDBY in modes
+        assert RedundancyMode.HOT_STANDBY in modes
+        assert RedundancyMode.ACTIVE_ACTIVE in modes
+
+    def test_health_update(self):
+        """测试健康状态更新"""
+        manager = FaultToleranceManager()
+
+        # 更新组件健康
+        manager.update_health('reservoir', {'health_score': 0.9})
+        assert manager.components['reservoir'].health_score == 0.9
+
+    def test_component_isolation(self):
+        """测试组件隔离"""
+        manager = FaultToleranceManager()
+
+        # 隔离组件
+        manager.isolate_component('valve_inline_1')
+        assert not manager.components['valve_inline_1'].is_healthy
+
+    def test_component_recovery(self):
+        """测试组件恢复"""
+        manager = FaultToleranceManager()
+
+        # 先隔离
+        manager.isolate_component('valve_inline_1')
+        # 再恢复
+        manager.recover_component('valve_inline_1')
+        assert manager.components['valve_inline_1'].is_healthy
+
+    def test_system_resilience(self):
+        """测试系统弹性"""
+        manager = FaultToleranceManager()
+
+        resilience = manager.get_system_resilience()
+        assert isinstance(resilience, SystemResilience)
+        assert resilience.overall_health >= 0
+        assert resilience.overall_health <= 1
+
+    def test_fault_statistics(self):
+        """测试故障统计"""
+        manager = FaultToleranceManager()
+
+        stats = manager.get_fault_statistics()
+        assert 'active_faults' in stats
+        assert 'total_faults' in stats
+
+    def test_heartbeat_timeout(self):
+        """测试心跳超时"""
+        manager = FaultToleranceManager()
+        manager.heartbeat_timeout = 0.001  # 设置极短超时
+
+        import time
+        time.sleep(0.01)
+
+        timeouts = manager.check_heartbeats()
+        assert len(timeouts) > 0
+
+    def test_redundancy_configuration(self):
+        """测试冗余配置"""
+        manager = FaultToleranceManager()
+
+        # 检查冗余配置
+        assert 'scada' in manager.redundancy_config
+        assert 'network' in manager.redundancy_config
+        assert 'power' in manager.redundancy_config
+
+        # 检查冗余模式
+        assert manager.redundancy_config['scada']['mode'] == RedundancyMode.HOT_STANDBY
+
+
+class TestL5Integration:
+    """L5系统集成测试"""
+
+    def test_full_cycle_with_emergency(self):
+        """测试完整周期包含应急"""
+        l5_system = create_l5_system()
+        emergency_agent = create_emergency_agent()
+        fault_manager = FaultToleranceManager()
+
+        # 模拟正常运行
+        measurements = {
+            'flow': 10.0,
+            'pressure': 50.0,
+            'level': 5.0
+        }
+
+        result = l5_system.process_cycle(measurements)
+        resilience = fault_manager.get_system_resilience()
+
+        assert result is not None
+        assert resilience.can_operate
+
+    def test_degradation_handling(self):
+        """测试降级处理"""
+        fault_manager = FaultToleranceManager()
+
+        # 模拟多个组件故障
+        fault_manager.isolate_component('valve_inline_1')
+        fault_manager.isolate_component('valve_inline_2')
+
+        resilience = fault_manager.get_system_resilience()
+
+        # 应该仍能运行但有降级
+        assert resilience.degradation_level > 0
+
+
 if __name__ == '__main__':
     pytest.main([__file__, '-v'])
