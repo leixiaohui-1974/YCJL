@@ -9,9 +9,14 @@ L5级自主运行智能体模块
 - 协调管理智能体
 - 学习优化智能体
 
+泵站群多智能体系统 (v1.0):
+- 泵站群安全智能体 (L1层)
+- 泵站群经济优化智能体 (L3层)
+- 泵站群协调智能体 (融合安全与经济)
+
 L5级定义: 全工况全自主,无需人工干预
 
-版本: 3.4.0
+版本: 3.8.0
 """
 
 from .l5_autonomous import (
@@ -51,6 +56,24 @@ from .fault_tolerance import (
     SystemResilience
 )
 
+# 泵站群多智能体系统 (v1.0)
+from .pump_group_agents import (
+    # 数据结构
+    PumpStatus,
+    ProtectionType,
+    PumpState,
+    StationState,
+    PumpGroupState,
+    PumpScheduleAction,
+    # 智能体
+    PumpGroupSafetyAgent,
+    PumpGroupEconomicAgent,
+    PumpGroupCoordinatorAgent,
+    PumpGroupMultiAgentSystem,
+    # 便捷函数
+    create_pump_group_system,
+)
+
 __all__ = [
     # 智能等级
     'AutonomyLevel',
@@ -80,5 +103,17 @@ __all__ = [
     'RedundancyMode',
     'FaultToleranceManager',
     'ComponentHealth',
-    'SystemResilience'
+    'SystemResilience',
+    # 泵站群多智能体系统
+    'PumpStatus',
+    'ProtectionType',
+    'PumpState',
+    'StationState',
+    'PumpGroupState',
+    'PumpScheduleAction',
+    'PumpGroupSafetyAgent',
+    'PumpGroupEconomicAgent',
+    'PumpGroupCoordinatorAgent',
+    'PumpGroupMultiAgentSystem',
+    'create_pump_group_system',
 ]
