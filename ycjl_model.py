@@ -140,12 +140,16 @@ class PIDController:
 
 class SaintVenantSolver:
     """明流求解器：扩散波近似 (Diffusive Wave) + 下游顶托处理"""
-    def __init__(self):
-        self.N = Config.TUNNEL_NODES
-        self.dx = Config.TUNNEL_DX
+    def __init__(self, length=None, width=None, slope=None, manning=None, dx=None):
+        self.dx = dx if dx is not None else Config.TUNNEL_DX
+        self.length = length if length is not None else Config.TUNNEL_LENGTH
+        self.width = width if width is not None else Config.TUNNEL_WIDTH
+        self.slope = slope if slope is not None else Config.TUNNEL_SLOPE
+        self.n = manning if manning is not None else Config.TUNNEL_MANNING
+        
+        self.N = int(self.length / self.dx) + 1
         self.h = np.ones(self.N) * 3.5 # 初始水深
         self.Q = np.ones(self.N) * 10.0
-        self.n = Config.TUNNEL_MANNING
 
     def step(self, Q_in, H_downstream_bc, dt):
         """
@@ -157,7 +161,9 @@ class SaintVenantSolver:
         
         h_new = self.h.copy()
         Q_new = self.Q.copy()
-        width = Config.TUNNEL_WIDTH
+        h_new = self.h.copy()
+        Q_new = self.Q.copy()
+        width = self.width
         
         # 显式差分求解
         for i in range(1, self.N - 1):
@@ -184,7 +190,7 @@ class SaintVenantSolver:
             dy_dx = (self.h[i+1] - self.h[i-1]) / (2 * self.dx)
             
             # 动量更新 (重力 - 摩阻 - 压力梯度)
-            accel = Config.G * area * (Config.TUNNEL_SLOPE - Sf - dy_dx)
+            accel = Config.G * area * (self.slope - Sf - dy_dx)
             Q_new[i] = self.Q[i] + accel * dt * 0.2 # 增加数值阻尼
             
         # 下游边界处理 (Backwater Effect)
@@ -203,11 +209,19 @@ class SaintVenantSolver:
 
 class MOCSolver:
     """特征线法求解器：精确处理非线性边界"""
-    def __init__(self):
-        self.N = Config.PIPE_NODES
-        self.a = Config.PIPE_WAVE_SPEED
-        self.B = self.a / (Config.G * Config.PIPE_AREA)
-        self.R = Config.PIPE_DARCY_F * Config.PIPE_DX / (2 * Config.G * Config.PIPE_DIAMETER * Config.PIPE_AREA**2)
+    """特征线法求解器：精确处理非线性边界"""
+    def __init__(self, length=None, diameter=None, wave_speed=None, friction=None, dx=None):
+        self.length = length if length is not None else Config.PIPE_LENGTH
+        self.diameter = diameter if diameter is not None else Config.PIPE_DIAMETER
+        self.a = wave_speed if wave_speed is not None else Config.PIPE_WAVE_SPEED
+        self.f = friction if friction is not None else Config.PIPE_DARCY_F
+        self.dx = dx if dx is not None else Config.PIPE_DX
+        
+        self.area = math.pi * (self.diameter/2)**2
+        self.N = int(self.length / self.dx) + 1
+        
+        self.B = self.a / (Config.G * self.area)
+        self.R = self.f * self.dx / (2 * Config.G * self.diameter * self.area**2)
         
         # 状态矩阵
         self.H = np.ones(self.N) * 50.0
@@ -275,7 +289,7 @@ class MOCSolver:
         idx = self.mid_idx
         K_val_coef = ValvePhysics.plunger_valve_k(valve_mid_open)
         # 转换为水头损失系数 coeff * Q^2
-        K_hydraulic = K_val_coef / (2 * Config.G * Config.PIPE_AREA**2)
+        K_hydraulic = K_val_coef / (2 * Config.G * self.area**2)
         
         # 求解
         Q_val = self.solve_valve_boundary(Cp[idx-1], Cm[idx], K_hydraulic)
@@ -331,7 +345,7 @@ class PhysicalPlant:
 
     def step(self, cmd_source_open, cmd_pool_open, cmd_mid_open, cmd_end_open, demand, burst_c, dt):
         # 1. 源头流出
-        q_source = ValvePhysics.radial_gate_flow(cmd_source_open, Config.TUNNEL_WIDTH, 50.0)
+        q_source = ValvePhysics.radial_gate_flow(cmd_source_open, self.sv_solver.width, 50.0)
         
         # 2. 隧洞演进 (传入稳流池水位作为顶托边界)
         q_tunnel_out = self.sv_solver.step(q_source, self.pool_level, dt)
@@ -587,7 +601,7 @@ def run_simulation():
             'P_mid': plant.moc_solver.H[plant.moc_solver.mid_idx] + np.random.normal(0, 0.1),
             'Q_mid': plant.moc_solver.Q[plant.moc_solver.mid_idx] + np.random.normal(0, 0.05),
             'H_surge': plant.surge_level + 40.0,
-            'Q_source_meas': plant.tunnel.Q[0]
+            'Q_source_meas': plant.sv_solver.Q[0]
         }
         
         # 2. SCADA 决策
