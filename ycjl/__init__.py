@@ -5,7 +5,7 @@
 产品化重构版本：包含完整的水动力学仿真、多层级智能体控制、
 场景识别和全自主运行能力。
 
-版本: 3.4.0 - 全工况L5自主运行版
+版本: 3.5.0 - 全工况L5自主运行版 + 密云水库调蓄工程
 - 完整工程参数数据库 (config_database)
 - 数字化特性曲线 (Hill Chart, 流阻曲线等)
 - 水轮机电站模型
@@ -18,6 +18,7 @@
 - L5级自主运行多智能体系统
 - 应急响应智能体
 - 故障容错系统
+- [NEW] 密云水库调蓄工程模块 (miyun)
 
 模块结构:
 - config: 全局配置参数与工程数据库
@@ -31,9 +32,10 @@
 - scenarios: 全工况场景识别与处理
 - simulation: 仿真引擎
 - deployment: 工程部署接口
+- miyun: 密云水库调蓄工程（泵站数据库、物理仿真、数据诊断、调度器）
 """
 
-__version__ = "3.4.0"
+__version__ = "3.5.0"
 __author__ = "YCJL Control Team"
 
 # 原有配置
@@ -93,6 +95,34 @@ def get_flood_hydrograph():
     from .control.scheduler import FloodHydrograph
     return FloodHydrograph
 
+
+# ==========================================
+# 密云水库调蓄工程模块
+# ==========================================
+def get_miyun_scheduler():
+    """获取密云水库调度器"""
+    from .miyun import Scheduler
+    return Scheduler
+
+
+def get_miyun_simulation_engine():
+    """获取密云水库仿真引擎"""
+    from .miyun import SimEngine
+    return SimEngine
+
+
+def get_miyun_config():
+    """获取密云水库配置"""
+    from .miyun import MiyunParams
+    return MiyunParams
+
+
+def run_miyun_simulation(flow: float = 10.0):
+    """运行密云水库仿真"""
+    from .miyun import run_simulation
+    return run_simulation(flow)
+
+
 __all__ = [
     # 版本信息
     '__version__',
@@ -123,5 +153,10 @@ __all__ = [
     'get_power_station',
     'get_valve_system',
     'get_reservoir_scheduler',
-    'get_flood_hydrograph'
+    'get_flood_hydrograph',
+    # 密云水库调蓄工程
+    'get_miyun_scheduler',
+    'get_miyun_simulation_engine',
+    'get_miyun_config',
+    'run_miyun_simulation'
 ]
