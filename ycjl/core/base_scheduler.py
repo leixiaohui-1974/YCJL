@@ -213,10 +213,191 @@ class BaseScheduler(ABC):
         print("\n".join(lines))
 
 
+# ==========================================
+# 增强调度器接口 (v2.0)
+# ==========================================
+class HealthLevel(Enum):
+    """健康等级"""
+    EXCELLENT = "优秀"      # 90-100
+    GOOD = "良好"           # 75-89
+    FAIR = "一般"           # 60-74
+    WARNING = "警告"        # 40-59
+    CRITICAL = "严重"       # 0-39
+
+
+@dataclass
+class EnhancedScheduleDecision(ScheduleDecision):
+    """
+    增强调度决策
+
+    在基础决策上增加场景和健康信息
+    """
+    detected_scenarios: List[str] = field(default_factory=list)
+    health_score: float = 100.0
+    data_readiness: str = "未检测"
+    constraint_violations: List[str] = field(default_factory=list)
+
+    def get_health_level(self) -> HealthLevel:
+        """获取健康等级"""
+        if self.health_score >= 90:
+            return HealthLevel.EXCELLENT
+        elif self.health_score >= 75:
+            return HealthLevel.GOOD
+        elif self.health_score >= 60:
+            return HealthLevel.FAIR
+        elif self.health_score >= 40:
+            return HealthLevel.WARNING
+        else:
+            return HealthLevel.CRITICAL
+
+
+@dataclass
+class HealthReport:
+    """
+    系统健康报告
+
+    提供系统整体健康状况的综合评估
+    """
+    timestamp: datetime
+    project_name: str
+    overall_score: float
+    health_level: HealthLevel
+    data_readiness: str
+    active_scenarios: List[str]
+    warnings: List[str]
+    recommendations: List[str]
+    metrics: Dict[str, float] = field(default_factory=dict)
+
+
+class IEnhancedScheduler(ABC):
+    """
+    增强调度器接口
+
+    定义场景感知和数据诊断的标准接口
+    """
+
+    @abstractmethod
+    def check_monthly_constraints(
+        self,
+        value: float,
+        month: Optional[int] = None
+    ) -> Tuple[bool, List[str]]:
+        """
+        检查月度调度约束
+
+        Args:
+            value: 检查值 (水位或流量)
+            month: 月份，默认当前月
+
+        Returns:
+            (是否合规, 约束信息列表)
+        """
+        pass
+
+    @abstractmethod
+    def detect_scenarios(
+        self,
+        state: Any
+    ) -> List[str]:
+        """
+        检测当前运行场景
+
+        Args:
+            state: 系统状态
+
+        Returns:
+            检测到的场景ID列表
+        """
+        pass
+
+    @abstractmethod
+    def get_scenario_response(
+        self,
+        scenario_id: str
+    ) -> List[str]:
+        """
+        获取场景响应措施
+
+        Args:
+            scenario_id: 场景ID
+
+        Returns:
+            响应措施列表
+        """
+        pass
+
+    @abstractmethod
+    def check_data_readiness(self) -> Any:
+        """
+        检查数据完备性
+
+        Returns:
+            数据缺口报告
+        """
+        pass
+
+
+def calculate_health_score(
+    data_completeness: float,
+    constraint_violations: int = 0,
+    critical_scenarios: int = 0,
+    warning_scenarios: int = 0
+) -> float:
+    """
+    计算系统健康得分
+
+    Args:
+        data_completeness: 数据完备率 (0-1)
+        constraint_violations: 约束违规数
+        critical_scenarios: 严重场景数
+        warning_scenarios: 一般场景数
+
+    Returns:
+        健康得分 (0-100)
+    """
+    score = 100.0
+
+    # 数据完备性 (最多扣30分)
+    score -= (1 - data_completeness) * 30
+
+    # 约束违规 (每个扣10分，最多扣30分)
+    score -= min(constraint_violations * 10, 30)
+
+    # 严重场景 (每个扣15分，最多扣30分)
+    score -= min(critical_scenarios * 15, 30)
+
+    # 一般场景 (每个扣5分，最多扣10分)
+    score -= min(warning_scenarios * 5, 10)
+
+    return max(0, min(100, score))
+
+
+def get_health_level(score: float) -> HealthLevel:
+    """根据得分获取健康等级"""
+    if score >= 90:
+        return HealthLevel.EXCELLENT
+    elif score >= 75:
+        return HealthLevel.GOOD
+    elif score >= 60:
+        return HealthLevel.FAIR
+    elif score >= 40:
+        return HealthLevel.WARNING
+    else:
+        return HealthLevel.CRITICAL
+
+
 __all__ = [
+    # 基础类
     'ScheduleMode',
     'OperationZone',
     'ScheduleConstraint',
     'ScheduleDecision',
-    'BaseScheduler'
+    'BaseScheduler',
+    # 增强类 (v2.0)
+    'HealthLevel',
+    'EnhancedScheduleDecision',
+    'HealthReport',
+    'IEnhancedScheduler',
+    'calculate_health_score',
+    'get_health_level'
 ]

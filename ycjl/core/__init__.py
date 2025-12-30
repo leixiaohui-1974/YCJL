@@ -28,7 +28,7 @@
 - 文档化：完整的docstring和类型注解
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 __author__ = "YCJL Development Team"
 
 # ==========================================
@@ -104,7 +104,14 @@ from .base_scheduler import (
     OperationZone,
     BaseScheduler,
     ScheduleDecision,
-    ScheduleConstraint
+    ScheduleConstraint,
+    # 增强调度器接口 (v2.0)
+    HealthLevel,
+    EnhancedScheduleDecision,
+    HealthReport,
+    IEnhancedScheduler,
+    calculate_health_score,
+    get_health_level
 )
 
 # ==========================================
@@ -177,6 +184,13 @@ __all__ = [
     'BaseScheduler',
     'ScheduleDecision',
     'ScheduleConstraint',
+    # 增强调度器接口
+    'HealthLevel',
+    'EnhancedScheduleDecision',
+    'HealthReport',
+    'IEnhancedScheduler',
+    'calculate_health_score',
+    'get_health_level',
 
     # 数据诊断器
     'DataReadinessLevel',

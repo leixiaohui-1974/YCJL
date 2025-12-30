@@ -133,9 +133,57 @@ def demo_simulation():
               f"P={sr.power_required:>6.0f}kW, η={sr.efficiency:.1%}")
 
 
+def demo_enhanced_schedulers():
+    """增强调度器演示"""
+    print_header("5. 增强调度器对比")
+
+    from datetime import datetime
+
+    # YCJL增强调度器
+    print("\n【引绰济辽增强调度器】")
+    try:
+        from ycjl.control.enhanced_scheduler import EnhancedScheduler as YCJLScheduler
+
+        # 月度约束
+        is_valid, msgs = YCJLScheduler.check_monthly_constraints(360.0, month=6)
+        print(f"  月度约束检查(水位360m): {'合规' if is_valid else '违规'}")
+
+        # 场景检测
+        scenarios = YCJLScheduler.detect_scenarios({"level": 360.0, "inflow": 50.0})
+        print(f"  检测场景: {scenarios[0] if scenarios else '无'}")
+
+        # 健康报告
+        decision = YCJLScheduler.make_enhanced_decision(
+            datetime.now(), level=360.0, inflow=40.0
+        )
+        print(f"  健康得分: {decision.health_score:.1f}")
+        print(f"  调度模式: {decision.supply_mode.name}")
+    except Exception as e:
+        print(f"  YCJL调度器错误: {e}")
+
+    # 密云增强调度器
+    print("\n【密云增强调度器】")
+    try:
+        from ycjl.miyun.scheduler import Scheduler as MiyunScheduler
+
+        # 月度约束
+        is_valid, msgs = MiyunScheduler.check_monthly_constraints(10.0)
+        print(f"  月度约束检查(流量10m³/s): {'合规' if is_valid else '违规'}")
+
+        # 场景检测
+        scenarios = MiyunScheduler.detect_scenarios(10.0)
+        print(f"  检测场景: {scenarios[0].name if scenarios else '无'}")
+
+        # 流量推荐
+        max_flow, min_flow = MiyunScheduler.get_recommended_flow_range()
+        print(f"  推荐流量范围: {min_flow:.1f} - {max_flow:.1f} m³/s")
+    except Exception as e:
+        print(f"  密云调度器错误: {e}")
+
+
 def demo_core_framework():
     """核心框架演示"""
-    print_header("5. 通用核心框架演示")
+    print_header("6. 通用核心框架演示")
 
     from ycjl.core.constants import PhysicsConstants
     from ycjl.core.interpolators import create_interpolator
@@ -189,6 +237,11 @@ def main():
         demo_simulation()
     except Exception as e:
         print(f"  仿真演示失败: {e}")
+
+    try:
+        demo_enhanced_schedulers()
+    except Exception as e:
+        print(f"  增强调度器演示失败: {e}")
 
     try:
         demo_core_framework()
