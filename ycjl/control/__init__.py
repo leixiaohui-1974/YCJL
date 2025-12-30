@@ -9,6 +9,7 @@
 - 前馈补偿
 - 史密斯预估器
 - 兴利调度 (调度图、供水调度、防洪调度)
+- 增强调度器 (场景感知、数据诊断)
 """
 
 from .pid import PIDController, CascadePID, PIDAutotuner
@@ -35,6 +36,12 @@ from .ice_strategy import (
     IcePeriodController,
     IceFlowRateLimiter,
     IceMonitor
+)
+from .enhanced_scheduler import (
+    EnhancedScheduleDecision,
+    SystemHealthReport,
+    YinChuoEnhancedScheduler,
+    EnhancedScheduler
 )
 
 __all__ = [
@@ -67,5 +74,10 @@ __all__ = [
     'IceControlDecision',
     'IcePeriodController',
     'IceFlowRateLimiter',
-    'IceMonitor'
+    'IceMonitor',
+    # 增强调度器
+    'EnhancedScheduleDecision',
+    'SystemHealthReport',
+    'YinChuoEnhancedScheduler',
+    'EnhancedScheduler'
 ]

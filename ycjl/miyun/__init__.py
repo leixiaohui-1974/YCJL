@@ -2,7 +2,7 @@
 密云水库调蓄工程智能输水系统 (Miyun Reservoir Water Transfer System)
 ===================================================================
 
-版本: 1.0.0
+版本: 1.1.0
 日期: 2024-12-30
 
 模块概述:
@@ -30,6 +30,11 @@
    - 数字孪生体检
    - 调度决策生成
    - 多场景仿真
+
+5. scenarios - 场景库 [NEW v1.1]
+   - 20+种工况场景定义
+   - 场景检测器
+   - 响应措施库
 
 工程概况:
 ---------
@@ -71,7 +76,7 @@
     Scheduler.print_schedule(decision)
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __author__ = "YCJL Development Team"
 __project__ = "密云水库调蓄工程智能输水系统"
 
@@ -175,6 +180,34 @@ from .scheduler import (
     run_simulation
 )
 
+# ==========================================
+# 场景库 [NEW v1.1]
+# ==========================================
+from .scenarios import (
+    # 枚举类型
+    ScenarioType,
+    ScenarioSeverity,
+    ResponsePriority,
+
+    # 数据类
+    ScenarioDefinition,
+    ScenarioEvent,
+
+    # 场景数据库
+    MIYUN_SCENARIO_DATABASE,
+
+    # 检测器类
+    MiyunScenarioDetector,
+
+    # 检测器实例
+    ScenarioDetector,
+
+    # 便捷函数
+    get_all_scenarios,
+    get_scenario_count,
+    print_scenario_summary
+)
+
 
 # ==========================================
 # 模块级便捷函数
@@ -262,5 +295,18 @@ __all__ = [
     # 模块级函数
     'get_version',
     'get_project_info',
-    'validate_config'
+    'validate_config',
+
+    # 场景库 [NEW v1.1]
+    'ScenarioType',
+    'ScenarioSeverity',
+    'ResponsePriority',
+    'ScenarioDefinition',
+    'ScenarioEvent',
+    'MIYUN_SCENARIO_DATABASE',
+    'MiyunScenarioDetector',
+    'ScenarioDetector',
+    'get_all_scenarios',
+    'get_scenario_count',
+    'print_scenario_summary'
 ]

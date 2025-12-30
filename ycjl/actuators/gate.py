@@ -260,3 +260,6 @@ class GateActuator:
         self.is_fault = False
         self.motor_current = 0.0
         self.history.clear()
+
+# 向后兼容别名
+Gate = GateActuator

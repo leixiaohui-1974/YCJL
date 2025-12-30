@@ -212,3 +212,6 @@ class ValveActuator:
         self.is_cavitating = False
         self.current_torque = 0.0
         self.history.clear()
+
+# 向后兼容别名
+Valve = ValveActuator

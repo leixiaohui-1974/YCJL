@@ -1,5 +1,5 @@
 """
-密云水库调蓄工程L5级自主调度器 (Autonomous Scheduler) v1.0
+密云水库调蓄工程L5级自主调度器 (Autonomous Scheduler) v1.1
 =========================================================
 
 功能：
@@ -7,6 +7,8 @@
 2. 运行优化 - 泵站运行方案优化
 3. 调度决策 - 基于当前工况的调度建议
 4. 场景仿真 - 不同流量场景下的系统响应
+5. [NEW] 月度调度约束 - 季节性流量限制检查
+6. [NEW] 场景感知调度 - 集成场景库
 """
 
 from dataclasses import dataclass, field
@@ -23,6 +25,7 @@ from .physics_engine import (
     SystemStatus, HeadCalculationResult, SystemDiagnosisResult
 )
 from .gap_analyzer import GapAnalyzer, DataGapReport
+from .scenarios import ScenarioDetector, ScenarioDefinition
 
 
 # ==========================================
@@ -329,7 +332,114 @@ class MiyunDigitalTwinScheduler:
                 print(f"  - {rec}")
 
     # ---------------------------------------------------------
-    # 3.4 数据完备性检查
+    # 3.4 月度调度约束检查 [NEW]
+    # ---------------------------------------------------------
+    def check_monthly_constraints(
+        self,
+        target_flow: float,
+        month: Optional[int] = None
+    ) -> Tuple[bool, List[str]]:
+        """
+        检查月度调度约束
+
+        基于 MiyunCurveDatabase.MONTHLY_FLOW_LIMITS 检查流量是否合规
+
+        Args:
+            target_flow: 目标流量 (m³/s)
+            month: 月份 (1-12)，默认使用当前月
+
+        Returns:
+            (是否合规, 约束信息列表)
+        """
+        if month is None:
+            month = datetime.datetime.now().month
+
+        flow_max, flow_min = self.curves.get_monthly_flow_limits(month)
+        violations = []
+        is_valid = True
+
+        if target_flow > flow_max:
+            is_valid = False
+            violations.append(
+                f"流量超上限: {target_flow:.1f} > {flow_max:.1f} m³/s "
+                f"(月份={month})"
+            )
+        elif target_flow < flow_min:
+            is_valid = False
+            violations.append(
+                f"流量低于下限: {target_flow:.1f} < {flow_min:.1f} m³/s "
+                f"(月份={month})"
+            )
+        else:
+            violations.append(
+                f"流量合规: {flow_min:.1f} ≤ {target_flow:.1f} ≤ {flow_max:.1f} m³/s"
+            )
+
+        return is_valid, violations
+
+    def get_recommended_flow_range(
+        self,
+        month: Optional[int] = None
+    ) -> Tuple[float, float]:
+        """
+        获取当月推荐流量范围
+
+        Args:
+            month: 月份，默认当前月
+
+        Returns:
+            (最大流量, 最小流量)
+        """
+        if month is None:
+            month = datetime.datetime.now().month
+        return self.curves.get_monthly_flow_limits(month)
+
+    # ---------------------------------------------------------
+    # 3.5 场景感知调度 [NEW]
+    # ---------------------------------------------------------
+    def detect_scenarios(
+        self,
+        flow: float,
+        pressures: Optional[Dict[str, float]] = None,
+        pump_status: Optional[Dict[str, Dict]] = None
+    ) -> List[ScenarioDefinition]:
+        """
+        检测当前运行场景
+
+        Args:
+            flow: 当前流量
+            pressures: 压力监测点数据
+            pump_status: 泵站状态
+
+        Returns:
+            检测到的场景定义列表
+        """
+        state = {
+            "flow": flow,
+            "timestamp": datetime.datetime.now().timestamp()
+        }
+        if pressures:
+            state["pressures"] = pressures
+        if pump_status:
+            state["pump_status"] = pump_status
+
+        events = ScenarioDetector.detect_scenarios(state)
+        scenarios = []
+        for event in events:
+            scenario = ScenarioDetector.get_scenario_info(event.scenario_id)
+            if scenario:
+                scenarios.append(scenario)
+        return scenarios
+
+    def get_scenario_response(
+        self,
+        scenario_id: str
+    ) -> List[str]:
+        """获取场景响应措施"""
+        return ScenarioDetector.get_response_actions(scenario_id)
+
+    # ---------------------------------------------------------
+    # 3.6 数据完备性检查
     # ---------------------------------------------------------
     def check_data_readiness(self, print_output: bool = True) -> DataGapReport:
         """

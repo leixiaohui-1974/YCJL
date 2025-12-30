@@ -7,6 +7,8 @@
 模块:
 - settings: 原有配置 (向后兼容)
 - config_database: 工程级参数数据库 v3.2
+- ice_parameters: 冰期参数数据库 v3.3
+- gap_analyzer: 数据完备性诊断器 v1.0 [NEW]
 """
 from .settings import (
     Config,
@@ -148,5 +150,20 @@ __all__ = [
     'JamParams',
     'BreakupParams',
     'ThermalParams',
-    'YCJLIceParams'
+    'YCJLIceParams',
+    # 数据完备性诊断器
+    'YinChuoGapAnalyzer',
+    'YCJLGapAnalyzer',
+    'analyze_data_readiness',
+    'print_gap_report',
+    'get_critical_missing'
 ]
+
+# 数据完备性诊断器 v1.0
+from .gap_analyzer import (
+    YinChuoGapAnalyzer,
+    YCJLGapAnalyzer,
+    analyze_data_readiness,
+    print_gap_report,
+    get_critical_missing
+)
