@@ -434,3 +434,6 @@ class PipelineMOC:
         """设置状态向量"""
         self.H = state[:self.N]
         self.Q = state[self.N:]
+
+# 向后兼容别名
+Pipeline = PipelineMOC

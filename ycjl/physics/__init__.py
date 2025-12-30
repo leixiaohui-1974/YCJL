@@ -20,7 +20,7 @@ from .reservoir_v2 import WendegenReservoir, ReservoirStateV2, SpillwayGateState
 from .tunnel import TunnelSolver, Tunnel, TunnelState
 from .pool import StabilizingPool
 from .surge_tank import SurgeTank
-from .pipeline import PipelineMOC
+from .pipeline import PipelineMOC, PipelineMOC as Pipeline
 from .siphon import Siphon
 from .valves import (
     RadialGate,
@@ -68,6 +68,7 @@ __all__ = [
     'StabilizingPool',
     'SurgeTank',
     'PipelineMOC',
+    'Pipeline',  # 向后兼容别名
     'Siphon',
     'RadialGate',
     'PlungerValve',
