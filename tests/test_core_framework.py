@@ -442,5 +442,54 @@ class TestIntegration:
             pytest.skip("Miyun module not available")
 
 
+class TestEnhancedScheduler:
+    """增强调度器测试"""
+
+    def test_ycjl_enhanced_scheduler(self):
+        """测试YCJL增强调度器"""
+        from ycjl.control.enhanced_scheduler import EnhancedScheduler
+        from datetime import datetime
+
+        # 测试数据完备性检查
+        report = EnhancedScheduler.check_data_readiness()
+        assert report is not None
+        assert report.completeness_ratio > 0
+
+        # 测试月度约束检查
+        is_valid, msgs = EnhancedScheduler.check_monthly_constraints(360.0, month=6)
+        assert isinstance(is_valid, bool)
+        assert len(msgs) > 0
+
+        # 测试场景检测
+        state = {"level": 360.0, "inflow": 50.0}
+        scenarios = EnhancedScheduler.detect_scenarios(state)
+        assert len(scenarios) > 0
+
+        # 测试增强决策
+        decision = EnhancedScheduler.make_enhanced_decision(
+            datetime.now(), level=360.0, inflow=40.0
+        )
+        assert decision is not None
+        assert hasattr(decision, 'health_score')
+        assert 0 <= decision.health_score <= 100
+
+    def test_miyun_enhanced_scheduler(self):
+        """测试密云增强调度器"""
+        from ycjl.miyun.scheduler import Scheduler
+
+        # 测试月度约束
+        is_valid, msgs = Scheduler.check_monthly_constraints(10.0)
+        assert isinstance(is_valid, bool)
+        assert len(msgs) > 0
+
+        # 测试场景检测
+        scenarios = Scheduler.detect_scenarios(10.0)
+        assert len(scenarios) > 0
+
+        # 测试流量范围
+        max_flow, min_flow = Scheduler.get_recommended_flow_range()
+        assert max_flow > min_flow
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
