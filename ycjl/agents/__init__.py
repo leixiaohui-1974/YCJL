@@ -14,9 +14,14 @@ L5级自主运行智能体模块
 - 泵站群经济优化智能体 (L3层)
 - 泵站群协调智能体 (融合安全与经济)
 
+L5泵站群集成系统 (v1.0):
+- 深度融合泵站群与L5自主系统
+- 态势感知/决策规划/执行控制扩展
+- 安全优先的统一决策框架
+
 L5级定义: 全工况全自主,无需人工干预
 
-版本: 3.8.0
+版本: 3.9.0
 """
 
 from .l5_autonomous import (
@@ -74,6 +79,23 @@ from .pump_group_agents import (
     create_pump_group_system,
 )
 
+# L5泵站群集成系统 (v1.0)
+from .l5_pump_group_integration import (
+    # 枚举
+    IntegrationMode,
+    # 数据结构
+    PumpGroupSituation,
+    IntegratedDecision,
+    # 扩展模块
+    PumpGroupAwarenessExtension,
+    PumpGroupPlanningExtension,
+    PumpGroupExecutionExtension,
+    # 集成系统
+    L5PumpGroupSystem,
+    # 便捷函数
+    create_l5_pump_group_system,
+)
+
 __all__ = [
     # 智能等级
     'AutonomyLevel',
@@ -116,4 +138,13 @@ __all__ = [
     'PumpGroupCoordinatorAgent',
     'PumpGroupMultiAgentSystem',
     'create_pump_group_system',
+    # L5泵站群集成系统
+    'IntegrationMode',
+    'PumpGroupSituation',
+    'IntegratedDecision',
+    'PumpGroupAwarenessExtension',
+    'PumpGroupPlanningExtension',
+    'PumpGroupExecutionExtension',
+    'L5PumpGroupSystem',
+    'create_l5_pump_group_system',
 ]
