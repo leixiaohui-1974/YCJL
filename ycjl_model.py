@@ -161,50 +161,48 @@ class SaintVenantSolver:
         
         h_new = self.h.copy()
         Q_new = self.Q.copy()
-        h_new = self.h.copy()
-        Q_new = self.Q.copy()
         width = self.width
         
         # 显式差分求解
-        for i in range(1, self.N - 1):
-            # 连续方程: dA/dt + dQ/dx = 0
-            dq_dx = (self.Q[i] - self.Q[i-1]) / self.dx
-            h_new[i] = self.h[i] - (dt / width) * dq_dx
-            
-            # 动量方程 (简化为扩散波): S_f = S_0 - dy/dx - (1/g)*dv/dt...
-            # 这里使用运动波+扩散项近似，保证数值稳定性
-            
-            # 计算水力半径与摩阻坡度
-            depth = self.h[i]
-            area = depth * width
-            peri = width + 2 * depth
-            R = area / peri
-            v = self.Q[i] / area
-            
-            # 曼宁公式反算 Sf
-            # Q = 1/n * A * R^(2/3) * Sf^(1/2)
-            # Sf = (Q*n)^2 / (A^2 * R^(4/3))
-            Sf = (self.Q[i] * self.n)**2 / (area**2 * R**(4/3))
-            
-            # 压力梯度项
-            dy_dx = (self.h[i+1] - self.h[i-1]) / (2 * self.dx)
-            
-            # 动量更新 (重力 - 摩阻 - 压力梯度)
-            accel = Config.G * area * (self.slope - Sf - dy_dx)
-            Q_new[i] = self.Q[i] + accel * dt * 0.2 # 增加数值阻尼
+        try:
+            for i in range(1, self.N - 1):
+                # 连续方程: dA/dt + dQ/dx = 0
+                dq_dx = (self.Q[i] - self.Q[i-1]) / self.dx
+                h_new[i] = self.h[i] - (dt / width) * dq_dx
+                if h_new[i] < 0.1: h_new[i] = 0.1 # Minimum depth clamp
+                
+                # 动量方程
+                depth = self.h[i]
+                area = depth * width
+                peri = width + 2 * depth
+                R = area / peri
+                
+                Sf = 0.0
+                if R > 0.01:
+                    Sf = (self.Q[i] * self.n)**2 / (area**2 * R**(4/3)) * np.sign(self.Q[i])
+                
+                dy_dx = (self.h[i+1] - self.h[i-1]) / (2 * self.dx)
+                accel = Config.G * area * (self.slope - Sf - dy_dx)
+                Q_new[i] = self.Q[i] + accel * dt * 0.2
+        except FloatingPointError as e:
+            print(f"!!! Solver Explosion at Node {i} !!!")
+            print(f"  h={self.h[i]}, Q={self.Q[i]}")
+            print(f"  R={R}, Sf={Sf}")
+            print(f"  accel={accel}")
+            raise e
             
         # 下游边界处理 (Backwater Effect)
-        # 如果稳流池水位高于临界水深，则顶托；否则自由出流
-        # 简化：假设下游断面与稳流池连通
+        # 强耦合: 瞬时传导稳流池水位
         h_critical = (self.Q[-1]**2 / (Config.G * width**2))**(1/3)
         h_boundary = max(H_downstream_bc - Config.POOL_BOTTOM_EL, h_critical)
         
-        # 边界松弛更新
-        h_new[-1] = 0.9 * h_new[-1] + 0.1 * h_boundary
-        Q_new[-1] = Q_new[-2] # 零梯度流出
+        self.h[-1] = h_boundary # Strong BC
+        self.Q[-1] = self.Q[-2] # Zero gradient Q
         
-        self.h = h_new
-        self.Q = Q_new
+        # Safety Cap to prevent explosion
+        np.clip(self.h, 0.1, 50.0, out=self.h)
+        np.clip(self.Q, -200.0, 200.0, out=self.Q)
+        
         return self.Q[-1]
 
 class MOCSolver:
@@ -244,6 +242,9 @@ class MOCSolver:
         # H_u - H_d = K Q^2
         
         Q_guess = 10.0 # 初值
+        dt = 1.0
+        total_steps = int(2.0 * 3600 / dt) # Run for 2 hours only to catch the crash
+        np.seterr(all='raise') # Force Raise on overflow/div-zero
         tol = 1e-4
         max_iter = 10
         
