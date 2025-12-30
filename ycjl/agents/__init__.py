@@ -19,9 +19,14 @@ L5泵站群集成系统 (v1.0):
 - 态势感知/决策规划/执行控制扩展
 - 安全优先的统一决策框架
 
+级联泵站协调调度 (v1.0):
+- 波传播预测 (浅水波速)
+- 前池水位控制 (物质平衡)
+- 智能接力调度 (上下游配合)
+
 L5级定义: 全工况全自主,无需人工干预
 
-版本: 3.9.0
+版本: 3.10.0
 """
 
 from .l5_autonomous import (
@@ -96,6 +101,24 @@ from .l5_pump_group_integration import (
     create_l5_pump_group_system,
 )
 
+# 级联泵站协调调度 (v1.0)
+from .cascade_coordination import (
+    # 枚举
+    CoordinationStrategy,
+    WaveType,
+    # 数据结构
+    CanalSection,
+    Forebay,
+    WavePropagation,
+    CoordinationCommand,
+    # 控制器
+    WavePropagationPredictor,
+    ForebayLevelController,
+    CascadeCoordinator,
+    # 便捷函数
+    create_cascade_coordinator,
+)
+
 __all__ = [
     # 智能等级
     'AutonomyLevel',
@@ -147,4 +170,15 @@ __all__ = [
     'PumpGroupExecutionExtension',
     'L5PumpGroupSystem',
     'create_l5_pump_group_system',
+    # 级联泵站协调调度
+    'CoordinationStrategy',
+    'WaveType',
+    'CanalSection',
+    'Forebay',
+    'WavePropagation',
+    'CoordinationCommand',
+    'WavePropagationPredictor',
+    'ForebayLevelController',
+    'CascadeCoordinator',
+    'create_cascade_coordinator',
 ]
