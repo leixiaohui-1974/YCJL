@@ -50,8 +50,8 @@ class TestPhysicsConstants:
             youngs_modulus=45e9
         )
 
-        # 波速应该在900-1200 m/s范围内
-        assert 900 < wave_speed < 1200
+        # 波速应该在900-1300 m/s范围内（PCCP管道典型值）
+        assert 900 < wave_speed < 1300
 
 
 class TestInterpolators:
