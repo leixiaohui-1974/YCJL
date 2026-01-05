@@ -182,12 +182,15 @@ from .sensor_optimizer import (
     ComponentType as SensorComponentType,  # 避免与base_physics冲突
     OptimizationObjective,
     PlacementStrategy,
+    OptimizationAlgorithm,
     # 数据类
     SensorSpec,
     MeasurementPoint,
     SensorPlacement,
     OptimizationConstraint,
     OptimizationSolution,
+    GeneticAlgorithmConfig,
+    PSOConfig,
     # 分析器
     SensorCatalog,
     ObservabilityAnalyzer,
@@ -197,6 +200,13 @@ from .sensor_optimizer import (
     BaseSensorOptimizer,
     WaterProjectSensorOptimizer,
     YCJLSensorOptimizer,
+    # 高级优化算法
+    GeneticSensorOptimizer,
+    PSOSensorOptimizer,
+    MultiAlgorithmOptimizer,
+    # 报告生成器
+    ReportFormat,
+    SensorOptimizationReporter,
     # 工厂
     create_sensor_optimizer
 )
@@ -317,11 +327,14 @@ __all__ = [
     'SensorComponentType',
     'OptimizationObjective',
     'PlacementStrategy',
+    'OptimizationAlgorithm',
     'SensorSpec',
     'MeasurementPoint',
     'SensorPlacement',
     'OptimizationConstraint',
     'OptimizationSolution',
+    'GeneticAlgorithmConfig',
+    'PSOConfig',
     'SensorCatalog',
     'ObservabilityAnalyzer',
     'CostBenefitAnalyzer',
@@ -329,5 +342,10 @@ __all__ = [
     'BaseSensorOptimizer',
     'WaterProjectSensorOptimizer',
     'YCJLSensorOptimizer',
+    'GeneticSensorOptimizer',
+    'PSOSensorOptimizer',
+    'MultiAlgorithmOptimizer',
+    'ReportFormat',
+    'SensorOptimizationReporter',
     'create_sensor_optimizer'
 ]

@@ -33,17 +33,57 @@ import math
 
 class SensorType(Enum):
     """传感器类型"""
+    # 基础水力参数传感器
     LEVEL = ("水位", "m")                   # 水位传感器
     PRESSURE = ("压力", "m水头")            # 压力传感器
     FLOW = ("流量", "m³/s")                 # 流量传感器
-    TEMPERATURE = ("温度", "°C")            # 温度传感器
     VELOCITY = ("流速", "m/s")              # 流速传感器
+    TEMPERATURE = ("温度", "°C")            # 温度传感器
+
+    # 水质传感器
     TURBIDITY = ("浊度", "NTU")             # 浊度传感器
-    QUALITY = ("水质", "-")                 # 水质传感器
+    PH = ("pH值", "pH")                     # pH传感器
+    DISSOLVED_OXYGEN = ("溶解氧", "mg/L")   # 溶解氧传感器
+    CONDUCTIVITY = ("电导率", "μS/cm")      # 电导率传感器
+    CHLOROPHYLL = ("叶绿素", "μg/L")        # 叶绿素传感器
+    AMMONIA = ("氨氮", "mg/L")              # 氨氮传感器
+    COD = ("COD", "mg/L")                   # 化学需氧量
+    QUALITY = ("水质综合", "-")             # 水质综合传感器
+
+    # 结构安全传感器
     VIBRATION = ("振动", "mm/s")            # 振动传感器
     DISPLACEMENT = ("位移", "mm")           # 位移传感器
     STRAIN = ("应变", "με")                 # 应变传感器
+    CRACK = ("裂缝", "mm")                  # 裂缝计
+    SETTLEMENT = ("沉降", "mm")             # 沉降仪
+    INCLINATION = ("倾斜", "°")             # 倾斜仪
+    SEEPAGE = ("渗流", "L/min")             # 渗流量计
+    PORE_PRESSURE = ("孔隙水压", "kPa")     # 孔隙水压力计
+    STRESS = ("应力", "MPa")                # 应力计
+
+    # 气象与环境传感器
+    AIR_TEMPERATURE = ("气温", "°C")        # 气温传感器
+    HUMIDITY = ("湿度", "%RH")              # 湿度传感器
+    RAINFALL = ("降雨量", "mm")             # 雨量计
+    WIND_SPEED = ("风速", "m/s")            # 风速仪
+    WIND_DIRECTION = ("风向", "°")          # 风向仪
+    EVAPORATION = ("蒸发量", "mm")          # 蒸发计
+    SOLAR_RADIATION = ("太阳辐射", "W/m²")  # 太阳辐射计
+
+    # 冰期与寒区传感器
     ICE_THICKNESS = ("冰厚", "m")           # 冰厚传感器
+    ICE_COVER = ("冰盖", "%")               # 冰盖覆盖率
+    FREEZE_DEPTH = ("冻深", "m")            # 冻结深度
+
+    # 设备状态传感器
+    POWER = ("功率", "kW")                  # 功率传感器
+    CURRENT = ("电流", "A")                 # 电流传感器
+    VOLTAGE = ("电压", "V")                 # 电压传感器
+    ROTATION_SPEED = ("转速", "rpm")        # 转速传感器
+    BEARING_TEMP = ("轴承温度", "°C")       # 轴承温度
+    OIL_PRESSURE = ("油压", "MPa")          # 油压传感器
+    VALVE_POSITION = ("阀位", "%")          # 阀门开度
+    GATE_POSITION = ("闸位", "m")           # 闸门开度
 
     def __init__(self, name: str, unit: str):
         self._name = name
@@ -56,6 +96,34 @@ class SensorType(Enum):
     @property
     def unit(self) -> str:
         return self._unit
+
+    @classmethod
+    def get_category(cls, sensor_type: 'SensorType') -> str:
+        """获取传感器类别"""
+        hydraulic = {cls.LEVEL, cls.PRESSURE, cls.FLOW, cls.VELOCITY, cls.TEMPERATURE}
+        quality = {cls.TURBIDITY, cls.PH, cls.DISSOLVED_OXYGEN, cls.CONDUCTIVITY,
+                   cls.CHLOROPHYLL, cls.AMMONIA, cls.COD, cls.QUALITY}
+        structural = {cls.VIBRATION, cls.DISPLACEMENT, cls.STRAIN, cls.CRACK,
+                      cls.SETTLEMENT, cls.INCLINATION, cls.SEEPAGE, cls.PORE_PRESSURE, cls.STRESS}
+        meteorological = {cls.AIR_TEMPERATURE, cls.HUMIDITY, cls.RAINFALL,
+                          cls.WIND_SPEED, cls.WIND_DIRECTION, cls.EVAPORATION, cls.SOLAR_RADIATION}
+        ice = {cls.ICE_THICKNESS, cls.ICE_COVER, cls.FREEZE_DEPTH}
+        equipment = {cls.POWER, cls.CURRENT, cls.VOLTAGE, cls.ROTATION_SPEED,
+                     cls.BEARING_TEMP, cls.OIL_PRESSURE, cls.VALVE_POSITION, cls.GATE_POSITION}
+
+        if sensor_type in hydraulic:
+            return "水力参数"
+        elif sensor_type in quality:
+            return "水质监测"
+        elif sensor_type in structural:
+            return "结构安全"
+        elif sensor_type in meteorological:
+            return "气象环境"
+        elif sensor_type in ice:
+            return "冰期寒区"
+        elif sensor_type in equipment:
+            return "设备状态"
+        return "其他"
 
 
 class MeasurementPriority(Enum):
@@ -621,6 +689,319 @@ class SensorCatalog:
             operating_temp_min=-40, operating_temp_max=30,
             purchase_cost=25000, installation_cost=10000,
             maintenance_cost_annual=3000
+        ))
+
+        # ==========================================
+        # 扩展传感器类型 (v1.1)
+        # ==========================================
+
+        # 水质传感器
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.TURBIDITY,
+            name="TUR-100",
+            manufacturer="水质仪器",
+            range_min=0, range_max=1000,
+            accuracy=2, accuracy_type="relative",
+            response_time=2.0, sampling_rate_max=1,
+            mtbf=40000,
+            purchase_cost=8000, installation_cost=2000,
+            maintenance_cost_annual=1500
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.PH,
+            name="PH-100",
+            manufacturer="水质仪器",
+            range_min=0, range_max=14,
+            accuracy=0.02, accuracy_type="absolute",
+            response_time=5.0, sampling_rate_max=0.5,
+            mtbf=30000,
+            purchase_cost=3000, installation_cost=1000,
+            maintenance_cost_annual=800
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.DISSOLVED_OXYGEN,
+            name="DO-100",
+            manufacturer="水质仪器",
+            range_min=0, range_max=20,
+            accuracy=0.1, accuracy_type="absolute",
+            response_time=30.0, sampling_rate_max=0.1,
+            mtbf=25000,
+            purchase_cost=5000, installation_cost=1500,
+            maintenance_cost_annual=1200
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.CONDUCTIVITY,
+            name="EC-100",
+            manufacturer="水质仪器",
+            range_min=0, range_max=5000,
+            accuracy=1, accuracy_type="relative",
+            response_time=2.0, sampling_rate_max=1,
+            mtbf=50000,
+            purchase_cost=2500, installation_cost=800,
+            maintenance_cost_annual=500
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.AMMONIA,
+            name="NH3-100",
+            manufacturer="水质仪器",
+            range_min=0, range_max=50,
+            accuracy=5, accuracy_type="relative",
+            response_time=60.0, sampling_rate_max=0.05,
+            mtbf=20000,
+            purchase_cost=15000, installation_cost=3000,
+            maintenance_cost_annual=3000
+        ))
+
+        # 结构安全传感器
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.VIBRATION,
+            name="VIB-100",
+            manufacturer="振动监测",
+            range_min=0, range_max=100,
+            accuracy=0.1, accuracy_type="absolute",
+            response_time=0.001, sampling_rate_max=5000,
+            mtbf=80000,
+            purchase_cost=6000, installation_cost=1500,
+            maintenance_cost_annual=600
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.DISPLACEMENT,
+            name="DIS-100",
+            manufacturer="位移监测",
+            range_min=-50, range_max=50,
+            accuracy=0.01, accuracy_type="absolute",
+            response_time=0.1, sampling_rate_max=100,
+            mtbf=100000,
+            purchase_cost=4000, installation_cost=1000,
+            maintenance_cost_annual=400
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.STRAIN,
+            name="STR-100",
+            manufacturer="应变监测",
+            range_min=-3000, range_max=3000,
+            accuracy=1, accuracy_type="absolute",
+            response_time=0.01, sampling_rate_max=1000,
+            mtbf=150000,
+            purchase_cost=800, installation_cost=500,
+            maintenance_cost_annual=100
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.CRACK,
+            name="CRK-100",
+            manufacturer="裂缝监测",
+            range_min=0, range_max=30,
+            accuracy=0.01, accuracy_type="absolute",
+            response_time=1.0, sampling_rate_max=10,
+            mtbf=100000,
+            purchase_cost=2000, installation_cost=800,
+            maintenance_cost_annual=200
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.SETTLEMENT,
+            name="SET-100",
+            manufacturer="沉降监测",
+            range_min=-500, range_max=500,
+            accuracy=0.1, accuracy_type="absolute",
+            response_time=10.0, sampling_rate_max=0.1,
+            mtbf=80000,
+            purchase_cost=5000, installation_cost=2000,
+            maintenance_cost_annual=500
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.INCLINATION,
+            name="INC-100",
+            manufacturer="倾斜监测",
+            range_min=-30, range_max=30,
+            accuracy=0.001, accuracy_type="absolute",
+            response_time=1.0, sampling_rate_max=10,
+            mtbf=100000,
+            purchase_cost=8000, installation_cost=2500,
+            maintenance_cost_annual=800
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.SEEPAGE,
+            name="SEE-100",
+            manufacturer="渗流监测",
+            range_min=0, range_max=100,
+            accuracy=1, accuracy_type="relative",
+            response_time=5.0, sampling_rate_max=1,
+            mtbf=50000,
+            purchase_cost=3000, installation_cost=1500,
+            maintenance_cost_annual=500
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.PORE_PRESSURE,
+            name="POR-100",
+            manufacturer="渗压监测",
+            range_min=0, range_max=1000,
+            accuracy=0.5, accuracy_type="relative",
+            response_time=1.0, sampling_rate_max=10,
+            mtbf=80000,
+            purchase_cost=2500, installation_cost=1000,
+            maintenance_cost_annual=300
+        ))
+
+        # 气象传感器
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.AIR_TEMPERATURE,
+            name="AT-100",
+            manufacturer="气象仪器",
+            range_min=-50, range_max=60,
+            accuracy=0.2, accuracy_type="absolute",
+            response_time=10.0, sampling_rate_max=0.5,
+            mtbf=80000,
+            purchase_cost=500, installation_cost=300,
+            maintenance_cost_annual=100
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.HUMIDITY,
+            name="HUM-100",
+            manufacturer="气象仪器",
+            range_min=0, range_max=100,
+            accuracy=2, accuracy_type="absolute",
+            response_time=10.0, sampling_rate_max=0.5,
+            mtbf=60000,
+            purchase_cost=400, installation_cost=200,
+            maintenance_cost_annual=80
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.RAINFALL,
+            name="RG-100",
+            manufacturer="气象仪器",
+            range_min=0, range_max=500,
+            accuracy=0.2, accuracy_type="absolute",
+            response_time=60.0, sampling_rate_max=0.1,
+            mtbf=50000,
+            purchase_cost=3000, installation_cost=1500,
+            maintenance_cost_annual=500
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.WIND_SPEED,
+            name="WS-100",
+            manufacturer="气象仪器",
+            range_min=0, range_max=60,
+            accuracy=0.3, accuracy_type="absolute",
+            response_time=1.0, sampling_rate_max=10,
+            mtbf=40000,
+            purchase_cost=2000, installation_cost=1000,
+            maintenance_cost_annual=400
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.EVAPORATION,
+            name="EVP-100",
+            manufacturer="气象仪器",
+            range_min=0, range_max=100,
+            accuracy=0.1, accuracy_type="absolute",
+            response_time=3600.0, sampling_rate_max=0.001,
+            mtbf=60000,
+            purchase_cost=5000, installation_cost=2000,
+            maintenance_cost_annual=800
+        ))
+
+        # 冰期扩展传感器
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.ICE_COVER,
+            name="ICOV-100",
+            manufacturer="寒区仪器",
+            range_min=0, range_max=100,
+            accuracy=5, accuracy_type="absolute",
+            response_time=60.0, sampling_rate_max=0.05,
+            mtbf=25000,
+            operating_temp_min=-45, operating_temp_max=25,
+            purchase_cost=20000, installation_cost=8000,
+            maintenance_cost_annual=4000
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.FREEZE_DEPTH,
+            name="FRZ-100",
+            manufacturer="寒区仪器",
+            range_min=0, range_max=5,
+            accuracy=0.05, accuracy_type="absolute",
+            response_time=3600.0, sampling_rate_max=0.001,
+            mtbf=50000,
+            operating_temp_min=-50, operating_temp_max=30,
+            purchase_cost=8000, installation_cost=5000,
+            maintenance_cost_annual=1000
+        ))
+
+        # 设备状态传感器
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.POWER,
+            name="PWR-100",
+            manufacturer="电力仪表",
+            range_min=0, range_max=10000,
+            accuracy=0.5, accuracy_type="relative",
+            response_time=0.1, sampling_rate_max=100,
+            mtbf=100000,
+            purchase_cost=2000, installation_cost=500,
+            maintenance_cost_annual=200
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.CURRENT,
+            name="CUR-100",
+            manufacturer="电力仪表",
+            range_min=0, range_max=1000,
+            accuracy=0.2, accuracy_type="relative",
+            response_time=0.05, sampling_rate_max=200,
+            mtbf=120000,
+            purchase_cost=800, installation_cost=300,
+            maintenance_cost_annual=80
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.ROTATION_SPEED,
+            name="RPM-100",
+            manufacturer="转速监测",
+            range_min=0, range_max=3000,
+            accuracy=0.1, accuracy_type="relative",
+            response_time=0.1, sampling_rate_max=100,
+            mtbf=80000,
+            purchase_cost=1500, installation_cost=500,
+            maintenance_cost_annual=150
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.BEARING_TEMP,
+            name="BT-100",
+            manufacturer="温度监测",
+            range_min=0, range_max=150,
+            accuracy=0.5, accuracy_type="absolute",
+            response_time=2.0, sampling_rate_max=5,
+            mtbf=100000,
+            purchase_cost=600, installation_cost=200,
+            maintenance_cost_annual=60
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.OIL_PRESSURE,
+            name="OP-100",
+            manufacturer="油压监测",
+            range_min=0, range_max=2,
+            accuracy=0.01, accuracy_type="absolute",
+            response_time=0.1, sampling_rate_max=50,
+            mtbf=90000,
+            purchase_cost=1200, installation_cost=400,
+            maintenance_cost_annual=120
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.VALVE_POSITION,
+            name="VP-100",
+            manufacturer="阀门监测",
+            range_min=0, range_max=100,
+            accuracy=0.5, accuracy_type="absolute",
+            response_time=0.2, sampling_rate_max=20,
+            mtbf=100000,
+            purchase_cost=1000, installation_cost=300,
+            maintenance_cost_annual=100
+        ))
+        self.add_sensor(SensorSpec(
+            sensor_type=SensorType.GATE_POSITION,
+            name="GP-100",
+            manufacturer="闸门监测",
+            range_min=0, range_max=20,
+            accuracy=0.01, accuracy_type="absolute",
+            response_time=0.5, sampling_rate_max=10,
+            mtbf=80000,
+            purchase_cost=3000, installation_cost=1000,
+            maintenance_cost_annual=300
         ))
 
     def add_sensor(self, spec: SensorSpec):
@@ -1908,6 +2289,487 @@ class YCJLSensorOptimizer(BaseSensorOptimizer):
 
 
 # ==========================================
+# 高级优化算法 (v1.1)
+# ==========================================
+
+class OptimizationAlgorithm(Enum):
+    """优化算法类型"""
+    GREEDY = "贪心算法"                     # 基础贪心
+    GENETIC = "遗传算法"                    # 遗传算法
+    PSO = "粒子群优化"                      # 粒子群优化
+    SIMULATED_ANNEALING = "模拟退火"        # 模拟退火
+
+
+@dataclass
+class GeneticAlgorithmConfig:
+    """遗传算法配置"""
+    population_size: int = 50               # 种群大小
+    generations: int = 100                  # 迭代代数
+    crossover_rate: float = 0.8             # 交叉率
+    mutation_rate: float = 0.1              # 变异率
+    elite_ratio: float = 0.1                # 精英比例
+    tournament_size: int = 3                # 锦标赛选择大小
+
+
+@dataclass
+class PSOConfig:
+    """粒子群优化配置"""
+    swarm_size: int = 30                    # 粒子数量
+    iterations: int = 100                   # 迭代次数
+    w: float = 0.7                          # 惯性权重
+    c1: float = 1.5                         # 认知参数
+    c2: float = 1.5                         # 社会参数
+    w_decay: float = 0.99                   # 惯性衰减
+
+
+class GeneticSensorOptimizer:
+    """
+    遗传算法传感器优化器
+
+    使用遗传算法进行传感器布置优化，特点：
+    - 全局搜索能力强
+    - 适合大规模组合优化问题
+    - 支持多目标优化
+    """
+
+    def __init__(self, base_optimizer: BaseSensorOptimizer,
+                 config: Optional[GeneticAlgorithmConfig] = None):
+        self.base_optimizer = base_optimizer
+        self.config = config or GeneticAlgorithmConfig()
+
+        # 确保测量点已初始化
+        if not base_optimizer._measurement_points:
+            base_optimizer._initialize_measurement_points()
+
+        self._best_solution: Optional[OptimizationSolution] = None
+        self._generation_history: List[float] = []
+
+    def _encode_solution(self, placements: List[SensorPlacement]) -> np.ndarray:
+        """将方案编码为染色体"""
+        # 编码: [传感器选择(0-N), 冗余度(1-3)]
+        chromosome = []
+        for p in placements:
+            # 传感器型号索引
+            all_sensors = self.base_optimizer.sensor_catalog.get_by_type(p.sensor_spec.sensor_type)
+            sensor_idx = all_sensors.index(p.sensor_spec) if p.sensor_spec in all_sensors else 0
+            chromosome.extend([sensor_idx, p.redundancy_count])
+        return np.array(chromosome, dtype=float)
+
+    def _decode_chromosome(self, chromosome: np.ndarray) -> List[SensorPlacement]:
+        """将染色体解码为方案"""
+        placements = []
+        points = self.base_optimizer._measurement_points
+        idx = 0
+        placement_id = 0
+
+        for point in points:
+            for sensor_type in point.required_measurements:
+                if idx + 1 >= len(chromosome):
+                    break
+
+                all_sensors = self.base_optimizer.sensor_catalog.get_by_type(sensor_type)
+                if not all_sensors:
+                    continue
+
+                sensor_idx = int(chromosome[idx]) % len(all_sensors)
+                redundancy = max(1, min(3, int(chromosome[idx + 1])))
+
+                placements.append(SensorPlacement(
+                    placement_id=f"GA-{placement_id:04d}",
+                    point=point,
+                    sensor_spec=all_sensors[sensor_idx],
+                    redundancy_count=redundancy,
+                    redundancy_type="hot" if redundancy > 1 else "none"
+                ))
+                placement_id += 1
+                idx += 2
+
+        return placements
+
+    def _initialize_population(self) -> List[np.ndarray]:
+        """初始化种群"""
+        population = []
+        # 第一个个体使用贪心解
+        greedy_solution = self.base_optimizer._generate_initial_solution()
+        population.append(self._encode_solution(greedy_solution))
+
+        # 其余随机生成
+        chromosome_length = len(population[0])
+        for _ in range(self.config.population_size - 1):
+            chromosome = np.zeros(chromosome_length)
+            for i in range(0, chromosome_length, 2):
+                chromosome[i] = np.random.randint(0, 10)  # 传感器选择
+                chromosome[i + 1] = np.random.randint(1, 4)  # 冗余度
+            population.append(chromosome)
+
+        return population
+
+    def _evaluate_fitness(self, chromosome: np.ndarray) -> float:
+        """评估适应度"""
+        placements = self._decode_chromosome(chromosome)
+        if not placements:
+            return 0.0
+
+        scores = self.base_optimizer._calculate_scores(placements)
+        fitness = self.base_optimizer._evaluate_objective(scores)
+
+        # 约束惩罚
+        total_cost = sum(p.total_cost for p in placements)
+        if self.base_optimizer._constraints.max_total_cost:
+            if total_cost > self.base_optimizer._constraints.max_total_cost:
+                penalty = (total_cost - self.base_optimizer._constraints.max_total_cost) / \
+                          self.base_optimizer._constraints.max_total_cost
+                fitness *= (1 - min(0.5, penalty))
+
+        return fitness
+
+    def _selection(self, population: List[np.ndarray],
+                   fitness_scores: List[float]) -> List[np.ndarray]:
+        """锦标赛选择"""
+        selected = []
+        for _ in range(len(population)):
+            tournament_idx = np.random.choice(len(population), self.config.tournament_size, replace=False)
+            tournament_fitness = [fitness_scores[i] for i in tournament_idx]
+            winner_idx = tournament_idx[np.argmax(tournament_fitness)]
+            selected.append(population[winner_idx].copy())
+        return selected
+
+    def _crossover(self, parent1: np.ndarray, parent2: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """双点交叉"""
+        if np.random.random() > self.config.crossover_rate:
+            return parent1.copy(), parent2.copy()
+
+        length = len(parent1)
+        point1, point2 = sorted(np.random.choice(length, 2, replace=False))
+
+        child1 = parent1.copy()
+        child2 = parent2.copy()
+        child1[point1:point2] = parent2[point1:point2]
+        child2[point1:point2] = parent1[point1:point2]
+
+        return child1, child2
+
+    def _mutate(self, chromosome: np.ndarray) -> np.ndarray:
+        """变异操作"""
+        mutated = chromosome.copy()
+        for i in range(len(mutated)):
+            if np.random.random() < self.config.mutation_rate:
+                if i % 2 == 0:  # 传感器选择
+                    mutated[i] = np.random.randint(0, 10)
+                else:  # 冗余度
+                    mutated[i] = np.random.randint(1, 4)
+        return mutated
+
+    def optimize(self) -> OptimizationSolution:
+        """执行遗传算法优化"""
+        import time
+        start_time = time.time()
+
+        # 初始化种群
+        population = self._initialize_population()
+        best_fitness = -float('inf')
+        best_chromosome = None
+
+        for generation in range(self.config.generations):
+            # 评估适应度
+            fitness_scores = [self._evaluate_fitness(c) for c in population]
+
+            # 更新最优解
+            max_idx = np.argmax(fitness_scores)
+            if fitness_scores[max_idx] > best_fitness:
+                best_fitness = fitness_scores[max_idx]
+                best_chromosome = population[max_idx].copy()
+
+            self._generation_history.append(best_fitness)
+
+            # 精英保留
+            elite_count = int(self.config.population_size * self.config.elite_ratio)
+            elite_indices = np.argsort(fitness_scores)[-elite_count:]
+            elites = [population[i].copy() for i in elite_indices]
+
+            # 选择
+            selected = self._selection(population, fitness_scores)
+
+            # 交叉和变异
+            new_population = elites.copy()
+            while len(new_population) < self.config.population_size:
+                idx1, idx2 = np.random.choice(len(selected), 2, replace=False)
+                child1, child2 = self._crossover(selected[idx1], selected[idx2])
+                new_population.append(self._mutate(child1))
+                if len(new_population) < self.config.population_size:
+                    new_population.append(self._mutate(child2))
+
+            population = new_population[:self.config.population_size]
+
+        # 构建最优解
+        best_placements = self._decode_chromosome(best_chromosome)
+        final_scores = self.base_optimizer._calculate_scores(best_placements)
+
+        solution = OptimizationSolution(
+            solution_id=f"GA-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            name=f"{self.base_optimizer.project_name}遗传算法优化方案",
+            placements=best_placements,
+            coverage_rate=final_scores["coverage"],
+            observability_score=final_scores["observability"],
+            redundancy_score=final_scores["redundancy"],
+            robustness_score=final_scores["robustness"],
+            total_points=len(self.base_optimizer._measurement_points),
+            optimization_iterations=self.config.generations,
+            optimization_time=time.time() - start_time,
+            objective_value=best_fitness
+        )
+        solution.update_statistics()
+
+        # 检查约束
+        satisfied, violations = self.base_optimizer._constraints.is_satisfied(solution)
+        solution.constraints_satisfied = satisfied
+        solution.constraint_violations = violations
+
+        self._best_solution = solution
+        return solution
+
+    def get_convergence_history(self) -> List[float]:
+        """获取收敛历史"""
+        return self._generation_history
+
+
+class PSOSensorOptimizer:
+    """
+    粒子群优化传感器布置器
+
+    使用粒子群优化算法进行传感器布置优化，特点：
+    - 收敛速度快
+    - 实现简单
+    - 适合连续优化问题
+    """
+
+    def __init__(self, base_optimizer: BaseSensorOptimizer,
+                 config: Optional[PSOConfig] = None):
+        self.base_optimizer = base_optimizer
+        self.config = config or PSOConfig()
+
+        if not base_optimizer._measurement_points:
+            base_optimizer._initialize_measurement_points()
+
+        self._best_solution: Optional[OptimizationSolution] = None
+        self._iteration_history: List[float] = []
+
+    def _calculate_dimension(self) -> int:
+        """计算问题维度"""
+        dim = 0
+        for point in self.base_optimizer._measurement_points:
+            dim += len(point.required_measurements) * 2  # 传感器选择 + 冗余
+        return dim
+
+    def _position_to_placements(self, position: np.ndarray) -> List[SensorPlacement]:
+        """将粒子位置转换为布置方案"""
+        placements = []
+        idx = 0
+        placement_id = 0
+
+        for point in self.base_optimizer._measurement_points:
+            for sensor_type in point.required_measurements:
+                if idx + 1 >= len(position):
+                    break
+
+                all_sensors = self.base_optimizer.sensor_catalog.get_by_type(sensor_type)
+                if not all_sensors:
+                    continue
+
+                sensor_idx = int(abs(position[idx])) % len(all_sensors)
+                redundancy = max(1, min(3, int(abs(position[idx + 1])) % 4 + 1))
+
+                placements.append(SensorPlacement(
+                    placement_id=f"PSO-{placement_id:04d}",
+                    point=point,
+                    sensor_spec=all_sensors[sensor_idx],
+                    redundancy_count=redundancy,
+                    redundancy_type="hot" if redundancy > 1 else "none"
+                ))
+                placement_id += 1
+                idx += 2
+
+        return placements
+
+    def _evaluate_particle(self, position: np.ndarray) -> float:
+        """评估粒子适应度"""
+        placements = self._position_to_placements(position)
+        if not placements:
+            return 0.0
+
+        scores = self.base_optimizer._calculate_scores(placements)
+        fitness = self.base_optimizer._evaluate_objective(scores)
+
+        # 约束惩罚
+        total_cost = sum(p.total_cost for p in placements)
+        if self.base_optimizer._constraints.max_total_cost:
+            if total_cost > self.base_optimizer._constraints.max_total_cost:
+                penalty = (total_cost - self.base_optimizer._constraints.max_total_cost) / \
+                          self.base_optimizer._constraints.max_total_cost
+                fitness *= (1 - min(0.5, penalty))
+
+        return fitness
+
+    def optimize(self) -> OptimizationSolution:
+        """执行粒子群优化"""
+        import time
+        start_time = time.time()
+
+        dim = self._calculate_dimension()
+        swarm_size = self.config.swarm_size
+
+        # 初始化粒子群
+        positions = np.random.uniform(0, 10, (swarm_size, dim))
+        velocities = np.random.uniform(-1, 1, (swarm_size, dim))
+
+        # 个体最优
+        personal_best_positions = positions.copy()
+        personal_best_scores = np.array([self._evaluate_particle(p) for p in positions])
+
+        # 全局最优
+        global_best_idx = np.argmax(personal_best_scores)
+        global_best_position = positions[global_best_idx].copy()
+        global_best_score = personal_best_scores[global_best_idx]
+
+        w = self.config.w
+
+        for iteration in range(self.config.iterations):
+            for i in range(swarm_size):
+                # 更新速度
+                r1, r2 = np.random.random(dim), np.random.random(dim)
+                cognitive = self.config.c1 * r1 * (personal_best_positions[i] - positions[i])
+                social = self.config.c2 * r2 * (global_best_position - positions[i])
+                velocities[i] = w * velocities[i] + cognitive + social
+
+                # 限制速度
+                velocities[i] = np.clip(velocities[i], -5, 5)
+
+                # 更新位置
+                positions[i] += velocities[i]
+                positions[i] = np.clip(positions[i], 0, 20)
+
+                # 评估
+                score = self._evaluate_particle(positions[i])
+
+                # 更新个体最优
+                if score > personal_best_scores[i]:
+                    personal_best_scores[i] = score
+                    personal_best_positions[i] = positions[i].copy()
+
+                    # 更新全局最优
+                    if score > global_best_score:
+                        global_best_score = score
+                        global_best_position = positions[i].copy()
+
+            # 惯性权重衰减
+            w *= self.config.w_decay
+            self._iteration_history.append(global_best_score)
+
+        # 构建最优解
+        best_placements = self._position_to_placements(global_best_position)
+        final_scores = self.base_optimizer._calculate_scores(best_placements)
+
+        solution = OptimizationSolution(
+            solution_id=f"PSO-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            name=f"{self.base_optimizer.project_name}粒子群优化方案",
+            placements=best_placements,
+            coverage_rate=final_scores["coverage"],
+            observability_score=final_scores["observability"],
+            redundancy_score=final_scores["redundancy"],
+            robustness_score=final_scores["robustness"],
+            total_points=len(self.base_optimizer._measurement_points),
+            optimization_iterations=self.config.iterations,
+            optimization_time=time.time() - start_time,
+            objective_value=global_best_score
+        )
+        solution.update_statistics()
+
+        satisfied, violations = self.base_optimizer._constraints.is_satisfied(solution)
+        solution.constraints_satisfied = satisfied
+        solution.constraint_violations = violations
+
+        self._best_solution = solution
+        return solution
+
+    def get_convergence_history(self) -> List[float]:
+        """获取收敛历史"""
+        return self._iteration_history
+
+
+class MultiAlgorithmOptimizer:
+    """
+    多算法组合优化器
+
+    自动选择或组合多种算法进行优化
+    """
+
+    def __init__(self, base_optimizer: BaseSensorOptimizer):
+        self.base_optimizer = base_optimizer
+        self._results: Dict[str, OptimizationSolution] = {}
+
+    def optimize_all(self) -> Dict[str, OptimizationSolution]:
+        """使用所有算法进行优化"""
+        # 贪心算法
+        print("  运行贪心算法...")
+        greedy_solution = self.base_optimizer.optimize()
+        greedy_solution.name += "(贪心)"
+        self._results["greedy"] = greedy_solution
+
+        # 遗传算法
+        print("  运行遗传算法...")
+        ga_optimizer = GeneticSensorOptimizer(self.base_optimizer)
+        ga_solution = ga_optimizer.optimize()
+        self._results["genetic"] = ga_solution
+
+        # 粒子群优化
+        print("  运行粒子群优化...")
+        pso_optimizer = PSOSensorOptimizer(self.base_optimizer)
+        pso_solution = pso_optimizer.optimize()
+        self._results["pso"] = pso_solution
+
+        return self._results
+
+    def get_best_solution(self) -> OptimizationSolution:
+        """获取最优方案"""
+        if not self._results:
+            self.optimize_all()
+
+        best = max(self._results.values(), key=lambda s: s.objective_value)
+        return best
+
+    def compare_results(self) -> str:
+        """比较各算法结果"""
+        if not self._results:
+            self.optimize_all()
+
+        lines = [
+            "=" * 70,
+            "多算法优化结果比较",
+            "=" * 70,
+            f"{'算法':<15} {'目标值':<10} {'覆盖率':<10} {'成本(万)':<12} {'耗时(s)':<10}",
+            "-" * 70
+        ]
+
+        for name, sol in sorted(self._results.items(), key=lambda x: -x[1].objective_value):
+            lines.append(
+                f"{name:<15} {sol.objective_value:.4f}     "
+                f"{sol.coverage_rate:.1%}     "
+                f"¥{sol.total_cost/10000:.1f}        "
+                f"{sol.optimization_time:.2f}"
+            )
+
+        best = self.get_best_solution()
+        lines.extend([
+            "-" * 70,
+            f"推荐方案: {best.name}",
+            f"目标函数值: {best.objective_value:.4f}",
+            "=" * 70
+        ])
+
+        return "\n".join(lines)
+
+
+# ==========================================
 # 工厂函数
 # ==========================================
 
@@ -1938,6 +2800,373 @@ def create_sensor_optimizer(project_type: str,
 
 
 # ==========================================
+# 可视化报告生成器 (v1.1)
+# ==========================================
+
+class ReportFormat(Enum):
+    """报告格式"""
+    TEXT = "文本"
+    HTML = "HTML"
+    MARKDOWN = "Markdown"
+    JSON = "JSON"
+
+
+class SensorOptimizationReporter:
+    """
+    传感器优化报告生成器
+
+    支持多种格式的报告输出：
+    - 文本报告
+    - HTML报告（含图表）
+    - Markdown报告
+    - JSON数据导出
+    """
+
+    def __init__(self, solution: OptimizationSolution,
+                 optimizer: Optional[BaseSensorOptimizer] = None):
+        self.solution = solution
+        self.optimizer = optimizer
+        self._convergence_history: Optional[List[float]] = None
+
+    def set_convergence_history(self, history: List[float]):
+        """设置收敛历史（用于图表）"""
+        self._convergence_history = history
+
+    def generate_text_report(self) -> str:
+        """生成文本报告"""
+        return self.solution.summary()
+
+    def generate_markdown_report(self) -> str:
+        """生成Markdown报告"""
+        sol = self.solution
+        lines = [
+            f"# {sol.name}",
+            "",
+            f"**方案ID**: {sol.solution_id}",
+            f"**生成时间**: {sol.timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
+            "",
+            "## 总体评估",
+            "",
+            "| 指标 | 数值 |",
+            "|------|------|",
+            f"| 覆盖率 | {sol.coverage_rate:.1%} |",
+            f"| 可观测性 | {sol.observability_score:.1%} |",
+            f"| 冗余度 | {sol.redundancy_score:.1%} |",
+            f"| 鲁棒性 | {sol.robustness_score:.1%} |",
+            "",
+            "## 成本统计",
+            "",
+            f"- **总投资**: ¥{sol.total_cost:,.0f}",
+            f"- **年度成本**: ¥{sol.annual_cost:,.0f}",
+            "",
+            "## 设备统计",
+            "",
+            f"- **传感器总数**: {sol.sensor_count}",
+            f"- **覆盖点位**: {sol.covered_points}/{sol.total_points}",
+            "",
+            "### 按类型分布",
+            "",
+            "| 类型 | 数量 |",
+            "|------|------|",
+        ]
+
+        for st, count in sorted(sol.sensor_by_type.items(), key=lambda x: -x[1]):
+            lines.append(f"| {st.display_name} | {count} |")
+
+        # 详细布置表
+        lines.extend([
+            "",
+            "## 详细布置清单",
+            "",
+            "| 点位 | 传感器 | 型号 | 冗余 | 成本 |",
+            "|------|--------|------|------|------|",
+        ])
+
+        for p in sol.placements:
+            lines.append(
+                f"| {p.point.name} | {p.sensor_spec.sensor_type.display_name} | "
+                f"{p.sensor_spec.name} | {p.redundancy_count} | ¥{p.total_cost:,.0f} |"
+            )
+
+        # 约束检查
+        if not sol.constraints_satisfied:
+            lines.extend([
+                "",
+                "## ⚠️ 约束违反",
+                ""
+            ])
+            for v in sol.constraint_violations:
+                lines.append(f"- {v}")
+
+        return "\n".join(lines)
+
+    def generate_html_report(self) -> str:
+        """生成HTML报告（含图表）"""
+        sol = self.solution
+
+        # 生成图表数据
+        chart_data = self._generate_chart_data()
+
+        html = f'''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{sol.name}</title>
+    <style>
+        body {{ font-family: 'Microsoft YaHei', Arial, sans-serif; margin: 20px; background: #f5f5f5; }}
+        .container {{ max-width: 1200px; margin: 0 auto; background: white; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+        h1 {{ color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }}
+        h2 {{ color: #34495e; margin-top: 30px; }}
+        .info-box {{ background: #ecf0f1; padding: 15px; border-radius: 5px; margin: 10px 0; }}
+        .metric-grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin: 20px 0; }}
+        .metric-card {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px; text-align: center; }}
+        .metric-card.cost {{ background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }}
+        .metric-value {{ font-size: 32px; font-weight: bold; }}
+        .metric-label {{ font-size: 14px; opacity: 0.9; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th, td {{ padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }}
+        th {{ background: #3498db; color: white; }}
+        tr:hover {{ background: #f5f5f5; }}
+        .chart-container {{ margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 10px; }}
+        .bar {{ height: 30px; background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); border-radius: 5px; margin: 5px 0; transition: width 0.5s; }}
+        .bar-label {{ display: flex; justify-content: space-between; margin-bottom: 5px; }}
+        .pie-chart {{ width: 300px; height: 300px; margin: 0 auto; }}
+        .summary-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }}
+        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 {sol.name}</h1>
+
+        <div class="info-box">
+            <strong>方案ID:</strong> {sol.solution_id} |
+            <strong>生成时间:</strong> {sol.timestamp.strftime('%Y-%m-%d %H:%M:%S')} |
+            <strong>优化耗时:</strong> {sol.optimization_time:.2f}秒
+        </div>
+
+        <h2>📈 总体评估</h2>
+        <div class="metric-grid">
+            <div class="metric-card">
+                <div class="metric-value">{sol.coverage_rate:.1%}</div>
+                <div class="metric-label">覆盖率</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{sol.observability_score:.1%}</div>
+                <div class="metric-label">可观测性</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{sol.redundancy_score:.1%}</div>
+                <div class="metric-label">冗余度</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{sol.robustness_score:.1%}</div>
+                <div class="metric-label">鲁棒性</div>
+            </div>
+        </div>
+
+        <div class="metric-grid">
+            <div class="metric-card cost">
+                <div class="metric-value">¥{sol.total_cost/10000:.1f}万</div>
+                <div class="metric-label">总投资</div>
+            </div>
+            <div class="metric-card cost">
+                <div class="metric-value">¥{sol.annual_cost/10000:.1f}万</div>
+                <div class="metric-label">年度成本</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{sol.sensor_count}</div>
+                <div class="metric-label">传感器总数</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{sol.covered_points}/{sol.total_points}</div>
+                <div class="metric-label">覆盖点位</div>
+            </div>
+        </div>
+
+        <h2>📊 传感器类型分布</h2>
+        <div class="chart-container">
+            {chart_data['type_distribution']}
+        </div>
+
+        <h2>📋 详细布置清单</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>点位</th>
+                    <th>组件</th>
+                    <th>传感器类型</th>
+                    <th>型号</th>
+                    <th>冗余</th>
+                    <th>成本</th>
+                </tr>
+            </thead>
+            <tbody>
+'''
+
+        for p in sol.placements:
+            html += f'''                <tr>
+                    <td>{p.point.name}</td>
+                    <td>{p.point.component_type.value}</td>
+                    <td>{p.sensor_spec.sensor_type.display_name}</td>
+                    <td>{p.sensor_spec.name}</td>
+                    <td>{p.redundancy_count}×</td>
+                    <td>¥{p.total_cost:,.0f}</td>
+                </tr>
+'''
+
+        html += f'''            </tbody>
+        </table>
+
+        <div class="footer">
+            生成于 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | 传感器优化模块 v1.1
+        </div>
+    </div>
+</body>
+</html>'''
+
+        return html
+
+    def _generate_chart_data(self) -> Dict[str, str]:
+        """生成图表HTML"""
+        sol = self.solution
+
+        # 类型分布条形图
+        type_bars = []
+        if sol.sensor_by_type:
+            max_count = max(sol.sensor_by_type.values())
+            for st, count in sorted(sol.sensor_by_type.items(), key=lambda x: -x[1]):
+                width = int(count / max_count * 100) if max_count > 0 else 0
+                type_bars.append(f'''
+            <div class="bar-label">
+                <span>{st.display_name}</span>
+                <span>{count}个</span>
+            </div>
+            <div class="bar" style="width: {width}%;"></div>
+''')
+
+        return {
+            'type_distribution': '\n'.join(type_bars)
+        }
+
+    def generate_json_report(self) -> str:
+        """生成JSON报告"""
+        import json
+        return json.dumps(self.solution.to_dict(), ensure_ascii=False, indent=2)
+
+    def generate_report(self, format: ReportFormat = ReportFormat.TEXT) -> str:
+        """
+        生成报告
+
+        Args:
+            format: 报告格式
+
+        Returns:
+            报告内容
+        """
+        if format == ReportFormat.TEXT:
+            return self.generate_text_report()
+        elif format == ReportFormat.MARKDOWN:
+            return self.generate_markdown_report()
+        elif format == ReportFormat.HTML:
+            return self.generate_html_report()
+        elif format == ReportFormat.JSON:
+            return self.generate_json_report()
+        else:
+            return self.generate_text_report()
+
+    def save_report(self, filepath: str, format: Optional[ReportFormat] = None):
+        """
+        保存报告到文件
+
+        Args:
+            filepath: 文件路径
+            format: 报告格式（自动从扩展名推断）
+        """
+        if format is None:
+            ext = filepath.lower().split('.')[-1]
+            format_map = {
+                'txt': ReportFormat.TEXT,
+                'md': ReportFormat.MARKDOWN,
+                'html': ReportFormat.HTML,
+                'json': ReportFormat.JSON
+            }
+            format = format_map.get(ext, ReportFormat.TEXT)
+
+        content = self.generate_report(format)
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+    @staticmethod
+    def generate_comparison_report(solutions: List[OptimizationSolution],
+                                   format: ReportFormat = ReportFormat.TEXT) -> str:
+        """
+        生成多方案比较报告
+
+        Args:
+            solutions: 方案列表
+            format: 报告格式
+
+        Returns:
+            比较报告
+        """
+        if format == ReportFormat.MARKDOWN:
+            lines = [
+                "# 传感器优化方案比较报告",
+                "",
+                "## 方案对比",
+                "",
+                "| 方案 | 覆盖率 | 可观测性 | 鲁棒性 | 成本(万) | 传感器数 |",
+                "|------|--------|----------|--------|----------|----------|"
+            ]
+
+            for sol in sorted(solutions, key=lambda x: -x.objective_value):
+                lines.append(
+                    f"| {sol.name} | {sol.coverage_rate:.1%} | "
+                    f"{sol.observability_score:.1%} | {sol.robustness_score:.1%} | "
+                    f"¥{sol.total_cost/10000:.1f} | {sol.sensor_count} |"
+                )
+
+            # 找出最优
+            best = max(solutions, key=lambda x: x.objective_value)
+            lines.extend([
+                "",
+                f"## 推荐方案: {best.name}",
+                f"- 目标函数值: {best.objective_value:.4f}",
+                f"- 总投资: ¥{best.total_cost:,.0f}"
+            ])
+
+            return "\n".join(lines)
+
+        else:
+            # 文本格式
+            lines = [
+                "=" * 70,
+                "传感器优化方案比较报告",
+                "=" * 70,
+                "",
+                f"{'方案':<25} {'覆盖率':<10} {'成本(万)':<12} {'传感器数':<10}",
+                "-" * 70
+            ]
+
+            for sol in sorted(solutions, key=lambda x: -x.objective_value):
+                lines.append(
+                    f"{sol.name:<25} {sol.coverage_rate:.1%}     "
+                    f"¥{sol.total_cost/10000:<10.1f} {sol.sensor_count}"
+                )
+
+            best = max(solutions, key=lambda x: x.objective_value)
+            lines.extend([
+                "-" * 70,
+                f"推荐: {best.name}",
+                "=" * 70
+            ])
+
+            return "\n".join(lines)
+
+
+# ==========================================
 # 导出
 # ==========================================
 
@@ -1948,6 +3177,7 @@ __all__ = [
     'ComponentType',
     'OptimizationObjective',
     'PlacementStrategy',
+    'OptimizationAlgorithm',
 
     # 数据类
     'SensorSpec',
@@ -1955,6 +3185,8 @@ __all__ = [
     'SensorPlacement',
     'OptimizationConstraint',
     'OptimizationSolution',
+    'GeneticAlgorithmConfig',
+    'PSOConfig',
 
     # 分析器
     'SensorCatalog',
@@ -1967,6 +3199,15 @@ __all__ = [
     'WaterProjectSensorOptimizer',
     'YCJLSensorOptimizer',
 
+    # 高级优化算法
+    'GeneticSensorOptimizer',
+    'PSOSensorOptimizer',
+    'MultiAlgorithmOptimizer',
+
     # 工厂
-    'create_sensor_optimizer'
+    'create_sensor_optimizer',
+
+    # 报告生成器
+    'ReportFormat',
+    'SensorOptimizationReporter'
 ]
