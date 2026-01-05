@@ -2,7 +2,7 @@
 水利工程智能输水系统通用核心框架 (Core Framework)
 =================================================
 
-版本: 2.1.0
+版本: 2.3.0
 日期: 2026-01-05
 
 本模块提供可复用的基础设施，支持多个水利工程项目：
@@ -20,6 +20,7 @@
 6. gap_analyzer - 通用数据完备性诊断器
 7. odd_analyzer - 设计运行域(ODD)分析器
 8. constants - 全局物理常数
+9. sensor_optimizer - 传感器点位与参数优化模块 (v2.3新增)
 
 设计原则:
 ---------
@@ -29,7 +30,7 @@
 - 文档化：完整的docstring和类型注解
 """
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 __author__ = "YCJL Development Team"
 
 # ==========================================
@@ -172,6 +173,45 @@ from .odd_analyzer import (
 )
 
 # ==========================================
+# 传感器优化模块 (v2.3新增)
+# ==========================================
+from .sensor_optimizer import (
+    # 枚举
+    SensorType,
+    MeasurementPriority,
+    ComponentType as SensorComponentType,  # 避免与base_physics冲突
+    OptimizationObjective,
+    PlacementStrategy,
+    OptimizationAlgorithm,
+    # 数据类
+    SensorSpec,
+    MeasurementPoint,
+    SensorPlacement,
+    OptimizationConstraint,
+    OptimizationSolution,
+    GeneticAlgorithmConfig,
+    PSOConfig,
+    # 分析器
+    SensorCatalog,
+    ObservabilityAnalyzer,
+    CostBenefitAnalyzer,
+    RobustnessAnalyzer,
+    # 优化器
+    BaseSensorOptimizer,
+    WaterProjectSensorOptimizer,
+    YCJLSensorOptimizer,
+    # 高级优化算法
+    GeneticSensorOptimizer,
+    PSOSensorOptimizer,
+    MultiAlgorithmOptimizer,
+    # 报告生成器
+    ReportFormat,
+    SensorOptimizationReporter,
+    # 工厂
+    create_sensor_optimizer
+)
+
+# ==========================================
 # 导出列表
 # ==========================================
 __all__ = [
@@ -279,5 +319,33 @@ __all__ = [
     'build_odd_from_devices',
     # YCJL专用构建器
     'YCJLODDBuilder',
-    'create_ycjl_odd_analyzer'
+    'create_ycjl_odd_analyzer',
+
+    # 传感器优化模块 (v2.3新增)
+    'SensorType',
+    'MeasurementPriority',
+    'SensorComponentType',
+    'OptimizationObjective',
+    'PlacementStrategy',
+    'OptimizationAlgorithm',
+    'SensorSpec',
+    'MeasurementPoint',
+    'SensorPlacement',
+    'OptimizationConstraint',
+    'OptimizationSolution',
+    'GeneticAlgorithmConfig',
+    'PSOConfig',
+    'SensorCatalog',
+    'ObservabilityAnalyzer',
+    'CostBenefitAnalyzer',
+    'RobustnessAnalyzer',
+    'BaseSensorOptimizer',
+    'WaterProjectSensorOptimizer',
+    'YCJLSensorOptimizer',
+    'GeneticSensorOptimizer',
+    'PSOSensorOptimizer',
+    'MultiAlgorithmOptimizer',
+    'ReportFormat',
+    'SensorOptimizationReporter',
+    'create_sensor_optimizer'
 ]
