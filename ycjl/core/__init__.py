@@ -2,8 +2,8 @@
 水利工程智能输水系统通用核心框架 (Core Framework)
 =================================================
 
-版本: 1.0.0
-日期: 2024-12-30
+版本: 2.1.0
+日期: 2026-01-05
 
 本模块提供可复用的基础设施，支持多个水利工程项目：
 - 引绰济辽工程
@@ -18,7 +18,8 @@
 4. base_simulation - 仿真引擎基类
 5. base_scheduler - 调度器基类
 6. gap_analyzer - 通用数据完备性诊断器
-7. constants - 全局物理常数
+7. odd_analyzer - 设计运行域(ODD)分析器
+8. constants - 全局物理常数
 
 设计原则:
 ---------
@@ -28,7 +29,7 @@
 - 文档化：完整的docstring和类型注解
 """
 
-__version__ = "2.0.0"
+__version__ = "2.2.0"
 __author__ = "YCJL Development Team"
 
 # ==========================================
@@ -127,6 +128,50 @@ from .gap_analyzer import (
 )
 
 # ==========================================
+# 设计运行域(ODD)分析器
+# ==========================================
+from .odd_analyzer import (
+    # 枚举
+    ODDDimension,
+    ODDStatus,
+    AutonomyLevel,
+    ConstraintType,
+    ViolationSeverity,
+    # 数据类
+    ODDBoundary,
+    ODDViolation,
+    DimensionScore,
+    ObservabilityMetrics,
+    ControllabilityMetrics,
+    ODDReport,
+    # 分析器
+    BaseODDAnalyzer,
+    WaterNetworkODDAnalyzer,
+    # 便捷函数
+    calculate_odd_reliability,
+    determine_autonomy_from_score,
+    create_water_odd_analyzer,
+    # ODD自动构建器 (从设备配置推导)
+    SensorProfile,
+    ActuatorProfile,
+    ChannelProfile,
+    CommunicationProfile,
+    ODDProfileBuilder,
+    ConfiguredODDAnalyzer,
+    build_odd_from_config,
+    # 世界模型约束
+    WorldModelConstraint,
+    WorldModelODDEnvelope,
+    create_world_model_envelope,
+    # 设备配置自动提取器 (v2.1)
+    DeviceProfileExtractor,
+    build_odd_from_devices,
+    # YCJL专用构建器 (v2.1)
+    YCJLODDBuilder,
+    create_ycjl_odd_analyzer
+)
+
+# ==========================================
 # 导出列表
 # ==========================================
 __all__ = [
@@ -198,5 +243,41 @@ __all__ = [
     'DataCategory',
     'MissingDataItem',
     'DataGapReport',
-    'BaseGapAnalyzer'
+    'BaseGapAnalyzer',
+
+    # ODD分析器
+    'ODDDimension',
+    'ODDStatus',
+    'AutonomyLevel',
+    'ConstraintType',
+    'ViolationSeverity',
+    'ODDBoundary',
+    'ODDViolation',
+    'DimensionScore',
+    'ObservabilityMetrics',
+    'ControllabilityMetrics',
+    'ODDReport',
+    'BaseODDAnalyzer',
+    'WaterNetworkODDAnalyzer',
+    'calculate_odd_reliability',
+    'determine_autonomy_from_score',
+    'create_water_odd_analyzer',
+    # ODD自动构建器
+    'SensorProfile',
+    'ActuatorProfile',
+    'ChannelProfile',
+    'CommunicationProfile',
+    'ODDProfileBuilder',
+    'ConfiguredODDAnalyzer',
+    'build_odd_from_config',
+    # 世界模型约束
+    'WorldModelConstraint',
+    'WorldModelODDEnvelope',
+    'create_world_model_envelope',
+    # 设备配置自动提取器
+    'DeviceProfileExtractor',
+    'build_odd_from_devices',
+    # YCJL专用构建器
+    'YCJLODDBuilder',
+    'create_ycjl_odd_analyzer'
 ]
