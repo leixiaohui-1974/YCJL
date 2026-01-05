@@ -29,7 +29,7 @@
 - 文档化：完整的docstring和类型注解
 """
 
-__version__ = "2.1.0"
+__version__ = "2.2.0"
 __author__ = "YCJL Development Team"
 
 # ==========================================
@@ -162,7 +162,13 @@ from .odd_analyzer import (
     # 世界模型约束
     WorldModelConstraint,
     WorldModelODDEnvelope,
-    create_world_model_envelope
+    create_world_model_envelope,
+    # 设备配置自动提取器 (v2.1)
+    DeviceProfileExtractor,
+    build_odd_from_devices,
+    # YCJL专用构建器 (v2.1)
+    YCJLODDBuilder,
+    create_ycjl_odd_analyzer
 )
 
 # ==========================================
@@ -267,5 +273,11 @@ __all__ = [
     # 世界模型约束
     'WorldModelConstraint',
     'WorldModelODDEnvelope',
-    'create_world_model_envelope'
+    'create_world_model_envelope',
+    # 设备配置自动提取器
+    'DeviceProfileExtractor',
+    'build_odd_from_devices',
+    # YCJL专用构建器
+    'YCJLODDBuilder',
+    'create_ycjl_odd_analyzer'
 ]

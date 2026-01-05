@@ -1894,6 +1894,600 @@ def create_world_model_envelope(
 
 
 # ==========================================
+# 设备配置自动提取器
+# ==========================================
+
+class DeviceProfileExtractor:
+    """
+    设备配置自动提取器
+
+    从现有的传感器和执行器实例中自动提取配置信息，
+    用于ODD边界的自动推导。
+
+    支持的传感器类型:
+    - LevelSensor (水位传感器)
+    - FlowSensor (流量传感器)
+    - PressureSensor (压力传感器)
+    - TemperatureSensor (温度传感器)
+
+    支持的执行器类型:
+    - GateActuator (闸门执行器)
+    - ValveActuator (阀门执行器)
+    - PumpActuator (水泵执行器)
+    """
+
+    @staticmethod
+    def extract_sensor_profile(sensor: Any) -> Optional[SensorProfile]:
+        """
+        从传感器实例提取SensorProfile
+
+        Args:
+            sensor: 传感器实例 (LevelSensor, FlowSensor, PressureSensor等)
+
+        Returns:
+            SensorProfile 或 None
+        """
+        if sensor is None:
+            return None
+
+        # 获取类名来确定传感器类型
+        class_name = sensor.__class__.__name__
+
+        # 通用属性提取
+        name = getattr(sensor, 'name', 'unknown_sensor')
+        position = getattr(sensor, 'position', 'unknown')
+        range_min = getattr(sensor, 'range_min', 0.0)
+        range_max = getattr(sensor, 'range_max', 100.0)
+        time_constant = getattr(sensor, 'time_constant', 0.5)
+
+        # 根据传感器类型确定参数
+        if 'Level' in class_name:
+            sensor_type = 'level'
+            accuracy = getattr(sensor, 'accuracy', 0.01)
+            resolution = getattr(sensor, 'resolution', 0.001)
+            accuracy_percent = (accuracy / (range_max - range_min)) * 100 if (range_max - range_min) > 0 else 0.1
+            sampling_rate = 1.0 / time_constant if time_constant > 0 else 1.0
+
+        elif 'Flow' in class_name:
+            sensor_type = 'flow'
+            accuracy = getattr(sensor, 'accuracy_percent', 0.5) / 100 * range_max
+            accuracy_percent = getattr(sensor, 'accuracy_percent', 0.5)
+            resolution = accuracy / 10
+            sampling_rate = 1.0 / time_constant if time_constant > 0 else 1.0
+
+        elif 'Pressure' in class_name:
+            sensor_type = 'pressure'
+            accuracy = getattr(sensor, 'accuracy', 0.5)
+            accuracy_percent = (accuracy / (range_max - range_min)) * 100 if (range_max - range_min) > 0 else 0.5
+            resolution = accuracy / 10
+            sampling_rate = getattr(sensor, 'sampling_rate', 100.0)
+
+        elif 'Temperature' in class_name:
+            sensor_type = 'temperature'
+            accuracy = getattr(sensor, 'accuracy', 0.1)
+            accuracy_percent = 1.0
+            resolution = getattr(sensor, 'resolution', 0.01)
+            sampling_rate = 1.0
+
+        else:
+            sensor_type = 'unknown'
+            accuracy = 0.01
+            accuracy_percent = 1.0
+            resolution = 0.001
+            sampling_rate = 1.0
+
+        # 检测冗余（如果有备份标志）
+        is_redundant = getattr(sensor, 'is_redundant', False)
+        redundancy_count = 2 if is_redundant else 1
+
+        # 估算MTBF（如果未提供则使用默认值）
+        mtbf = getattr(sensor, 'mtbf', 50000)
+
+        return SensorProfile(
+            name=name,
+            sensor_type=sensor_type,
+            position=position,
+            range_min=range_min,
+            range_max=range_max,
+            accuracy=accuracy,
+            accuracy_percent=accuracy_percent,
+            resolution=resolution,
+            time_constant=time_constant,
+            sampling_rate=sampling_rate,
+            mtbf=mtbf,
+            is_redundant=is_redundant,
+            redundancy_count=redundancy_count
+        )
+
+    @staticmethod
+    def extract_actuator_profile(actuator: Any) -> Optional[ActuatorProfile]:
+        """
+        从执行器实例提取ActuatorProfile
+
+        Args:
+            actuator: 执行器实例 (GateActuator, ValveActuator, PumpActuator等)
+
+        Returns:
+            ActuatorProfile 或 None
+        """
+        if actuator is None:
+            return None
+
+        class_name = actuator.__class__.__name__
+        name = getattr(actuator, 'name', 'unknown_actuator')
+        position = getattr(actuator, 'position', 'unknown')
+
+        # 根据执行器类型确定参数
+        if 'Gate' in class_name:
+            actuator_type = 'gate'
+            max_opening = getattr(actuator, 'max_opening', 6.0)
+            max_rate = getattr(actuator, 'max_rate_normal', 0.01)
+            dead_band = getattr(actuator, 'dead_band', 0.005)
+
+            # 闸门避振区信息
+            vibration_zone = getattr(actuator, 'vibration_zone', (0.05, 0.15))
+            min_step = vibration_zone[0]  # 使用避振区下限作为最小步进
+
+            # 响应时间估算：全行程时间
+            response_time = 1.0 / max_rate if max_rate > 0 else 100.0
+            settling_time = response_time * 1.2
+
+            # 力矩
+            max_torque = getattr(actuator, 'motor_stall_current', 120.0) * 10  # 估算
+
+        elif 'Valve' in class_name:
+            actuator_type = 'valve'
+            max_opening = 1.0  # 阀门开度归一化到0-1
+            stroke_time = getattr(actuator, 'stroke_time', 60.0)
+            max_rate = 1.0 / stroke_time if stroke_time > 0 else 0.017
+            dead_band = getattr(actuator, 'dead_band', 0.002)
+            min_step = getattr(actuator, 'min_rate', 0.001)
+            response_time = stroke_time / 10  # 10%行程作为响应时间
+            settling_time = stroke_time / 5
+            max_torque = getattr(actuator, 'max_torque', 1000.0)
+
+        elif 'Pump' in class_name:
+            actuator_type = 'pump'
+            max_opening = getattr(actuator, 'rated_flow', 15.0)  # 泵的"开度"用流量表示
+            max_rate = 1.0 / getattr(actuator, 'start_time', 60.0)
+            dead_band = 0.01  # 泵的死区较小
+            min_step = 0.01
+            response_time = getattr(actuator, 'inertia_time', 30.0)
+            settling_time = getattr(actuator, 'start_time', 60.0)
+            max_torque = 0  # 泵使用功率而非力矩
+
+        else:
+            actuator_type = 'unknown'
+            max_opening = 1.0
+            max_rate = 0.01
+            dead_band = 0.005
+            min_step = 0.001
+            response_time = 10.0
+            settling_time = 20.0
+            max_torque = 1000.0
+
+        # 检测冗余
+        is_redundant = getattr(actuator, 'is_redundant', False)
+        backup_mode = getattr(actuator, 'backup_mode', 'manual')
+
+        # 故障保护
+        stall_protection = getattr(actuator, 'stall_protection', True) if actuator_type == 'gate' else True
+
+        # MTBF
+        mtbf = getattr(actuator, 'mtbf', 30000)
+
+        return ActuatorProfile(
+            name=name,
+            actuator_type=actuator_type,
+            position=position,
+            stroke_min=0.0,
+            stroke_max=1.0,
+            max_opening=max_opening,
+            max_rate=max_rate,
+            min_step=min_step,
+            dead_band=dead_band,
+            positioning_accuracy=dead_band * 2,
+            response_time=response_time,
+            settling_time=settling_time,
+            max_torque=max_torque,
+            stall_protection=stall_protection,
+            mtbf=mtbf,
+            is_redundant=is_redundant,
+            backup_mode=backup_mode
+        )
+
+    @staticmethod
+    def extract_from_sensor_list(sensors: List[Any]) -> List[SensorProfile]:
+        """
+        从传感器列表批量提取配置
+
+        Args:
+            sensors: 传感器实例列表
+
+        Returns:
+            SensorProfile列表
+        """
+        profiles = []
+        for sensor in sensors:
+            profile = DeviceProfileExtractor.extract_sensor_profile(sensor)
+            if profile:
+                profiles.append(profile)
+        return profiles
+
+    @staticmethod
+    def extract_from_actuator_list(actuators: List[Any]) -> List[ActuatorProfile]:
+        """
+        从执行器列表批量提取配置
+
+        Args:
+            actuators: 执行器实例列表
+
+        Returns:
+            ActuatorProfile列表
+        """
+        profiles = []
+        for actuator in actuators:
+            profile = DeviceProfileExtractor.extract_actuator_profile(actuator)
+            if profile:
+                profiles.append(profile)
+        return profiles
+
+
+def build_odd_from_devices(
+    system_name: str,
+    sensors: List[Any],
+    actuators: List[Any],
+    channels: Optional[List[ChannelProfile]] = None,
+    communication: Optional[CommunicationProfile] = None
+) -> ConfiguredODDAnalyzer:
+    """
+    从实际设备实例构建ODD分析器
+
+    这是最便捷的ODD构建方式：直接传入传感器和执行器实例，
+    自动提取配置并构建ODD边界。
+
+    Args:
+        system_name: 系统名称
+        sensors: 传感器实例列表 (LevelSensor, FlowSensor等)
+        actuators: 执行器实例列表 (GateActuator, ValveActuator等)
+        channels: 渠道配置列表 (可选)
+        communication: 通信配置 (可选)
+
+    Returns:
+        ConfiguredODDAnalyzer
+
+    Example:
+        ```python
+        from ycjl.sensors import LevelSensor, FlowSensor
+        from ycjl.actuators import GateActuator
+
+        # 创建设备实例
+        level_sensor = LevelSensor("LS01", "进水口")
+        flow_sensor = FlowSensor("FS01", "主渠道")
+        gate = GateActuator("G01", max_opening=6.0)
+
+        # 自动构建ODD分析器
+        analyzer = build_odd_from_devices(
+            "引绰济辽输水系统",
+            sensors=[level_sensor, flow_sensor],
+            actuators=[gate]
+        )
+
+        # 执行分析
+        report = analyzer.analyze_with_preset({
+            "level_sensor_accuracy": 0.005,
+            "gate_deadzone_limit": 0.003
+        })
+        ```
+    """
+    # 提取设备配置
+    sensor_profiles = DeviceProfileExtractor.extract_from_sensor_list(sensors)
+    actuator_profiles = DeviceProfileExtractor.extract_from_actuator_list(actuators)
+
+    # 使用已有的便捷函数构建
+    return build_odd_from_config(
+        system_name,
+        sensor_profiles,
+        actuator_profiles,
+        channels,
+        communication
+    )
+
+
+# ==========================================
+# YCJL专用ODD构建器
+# ==========================================
+
+class YCJLODDBuilder:
+    """
+    引绰济辽工程专用ODD构建器
+
+    基于YCJL工程的特定参数和约束，自动构建ODD边界。
+    包含工程特有的：
+    - 冰期运行约束
+    - 多闸门协调约束
+    - 明渠-管道-隧洞混合系统约束
+    """
+
+    # 引绰济辽工程默认参数
+    DEFAULT_PARAMS = {
+        # 水位控制精度 (m)
+        'level_control_tolerance': 0.15,
+        # 水位变化率限制 (m/h)
+        'max_level_rate': 0.15,
+        # 流量扰动率限制 (%)
+        'max_flow_disturbance': 15.0,
+        # 弗劳德数上限 (保持缓流)
+        'max_froude_number': 0.9,
+        # 通信时延上限 (s)
+        'max_comm_latency': 1.5,
+        # 丢包率上限 (%)
+        'max_packet_loss': 0.1,
+        # 冰期最低水温 (℃)
+        'ice_period_min_temp': 0.0,
+        # 避振区开度范围
+        'vibration_zone': (0.05, 0.15),
+    }
+
+    def __init__(self, system_name: str = "引绰济辽输水系统"):
+        self.system_name = system_name
+        self.params = self.DEFAULT_PARAMS.copy()
+
+        # 设备列表
+        self.sensors: List[SensorProfile] = []
+        self.actuators: List[ActuatorProfile] = []
+        self.channels: List[ChannelProfile] = []
+        self.communication: Optional[CommunicationProfile] = None
+
+        # 工程特有边界
+        self._custom_boundaries: List[ODDBoundary] = []
+
+    def set_param(self, key: str, value: Any):
+        """设置工程参数"""
+        self.params[key] = value
+
+    def add_sensor(self, sensor: Any):
+        """
+        添加传感器（支持实例或配置）
+
+        Args:
+            sensor: LevelSensor等实例，或SensorProfile
+        """
+        if isinstance(sensor, SensorProfile):
+            self.sensors.append(sensor)
+        else:
+            profile = DeviceProfileExtractor.extract_sensor_profile(sensor)
+            if profile:
+                self.sensors.append(profile)
+
+    def add_actuator(self, actuator: Any):
+        """
+        添加执行器（支持实例或配置）
+
+        Args:
+            actuator: GateActuator等实例，或ActuatorProfile
+        """
+        if isinstance(actuator, ActuatorProfile):
+            self.actuators.append(actuator)
+        else:
+            profile = DeviceProfileExtractor.extract_actuator_profile(actuator)
+            if profile:
+                self.actuators.append(profile)
+
+    def add_channel(self, channel: ChannelProfile):
+        """添加渠道配置"""
+        self.channels.append(channel)
+
+    def set_communication(self, comm: CommunicationProfile):
+        """设置通信配置"""
+        self.communication = comm
+
+    def add_custom_boundary(self, boundary: ODDBoundary):
+        """添加自定义边界"""
+        self._custom_boundaries.append(boundary)
+
+    def _build_ycjl_specific_boundaries(self) -> List[ODDBoundary]:
+        """构建YCJL工程特有的ODD边界"""
+        boundaries = []
+
+        # 水位控制精度边界
+        boundaries.append(ODDBoundary(
+            name="ycjl_level_error",
+            dimension=ODDDimension.ENVIRONMENT,
+            description="引绰济辽水位控制偏差",
+            unit="m",
+            min_value=-self.params['level_control_tolerance'],
+            max_value=self.params['level_control_tolerance'],
+            nominal_value=0.0,
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.MAJOR,
+            weight=1.5
+        ))
+
+        # 水位变化率边界
+        boundaries.append(ODDBoundary(
+            name="ycjl_level_rate",
+            dimension=ODDDimension.DYNAMICS,
+            description="引绰济辽水位变化率",
+            unit="m/h",
+            min_value=-self.params['max_level_rate'],
+            max_value=self.params['max_level_rate'],
+            nominal_value=0.0,
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.MAJOR,
+            weight=1.3
+        ))
+
+        # 流量扰动率边界
+        boundaries.append(ODDBoundary(
+            name="ycjl_flow_disturbance",
+            dimension=ODDDimension.DYNAMICS,
+            description="引绰济辽流量扰动率",
+            unit="%",
+            min_value=0,
+            max_value=self.params['max_flow_disturbance'],
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.MAJOR,
+            weight=1.3
+        ))
+
+        # 弗劳德数边界（临界流态约束）
+        boundaries.append(ODDBoundary(
+            name="ycjl_froude_number",
+            dimension=ODDDimension.DYNAMICS,
+            description="引绰济辽弗劳德数(保持缓流)",
+            unit="-",
+            min_value=0,
+            max_value=self.params['max_froude_number'],
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.CRITICAL,
+            weight=1.5
+        ))
+
+        # 闸门避振区边界
+        vz = self.params['vibration_zone']
+        boundaries.append(ODDBoundary(
+            name="ycjl_vibration_zone",
+            dimension=ODDDimension.INFRASTRUCTURE,
+            description="闸门避振区上限",
+            unit="-",
+            min_value=vz[0],
+            max_value=vz[1],
+            nominal_value=(vz[0] + vz[1]) / 2,
+            constraint_type=ConstraintType.SOFT,
+            violation_severity=ViolationSeverity.WARNING,
+            weight=0.8
+        ))
+
+        # 冰期运行约束（特有）
+        boundaries.append(ODDBoundary(
+            name="ycjl_water_temp",
+            dimension=ODDDimension.ENVIRONMENT,
+            description="引绰济辽水温(冰期约束)",
+            unit="℃",
+            min_value=self.params['ice_period_min_temp'],
+            max_value=35.0,
+            nominal_value=15.0,
+            constraint_type=ConstraintType.SOFT,
+            violation_severity=ViolationSeverity.WARNING,
+            weight=0.7
+        ))
+
+        # 通信时延边界
+        boundaries.append(ODDBoundary(
+            name="ycjl_comm_latency",
+            dimension=ODDDimension.DIGITAL,
+            description="引绰济辽通信时延",
+            unit="s",
+            min_value=0,
+            max_value=self.params['max_comm_latency'],
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.MAJOR,
+            weight=1.2
+        ))
+
+        return boundaries
+
+    def build(self) -> ConfiguredODDAnalyzer:
+        """
+        构建引绰济辽工程专用ODD分析器
+
+        Returns:
+            ConfiguredODDAnalyzer
+        """
+        # 使用基础构建器
+        builder = ODDProfileBuilder(self.system_name)
+
+        for sensor in self.sensors:
+            builder.add_sensor(sensor)
+
+        for actuator in self.actuators:
+            builder.add_actuator(actuator)
+
+        for channel in self.channels:
+            builder.add_channel(channel)
+
+        if self.communication:
+            builder.set_communication(self.communication)
+
+        # 构建基础边界
+        boundaries, obs, ctrl = builder.build()
+
+        # 添加YCJL特有边界
+        ycjl_boundaries = self._build_ycjl_specific_boundaries()
+        boundaries.extend(ycjl_boundaries)
+
+        # 添加自定义边界
+        boundaries.extend(self._custom_boundaries)
+
+        return ConfiguredODDAnalyzer(
+            self.system_name,
+            boundaries,
+            obs,
+            ctrl
+        )
+
+    def build_with_ice_mode(self, is_ice_period: bool = False) -> ConfiguredODDAnalyzer:
+        """
+        构建带冰期模式的ODD分析器
+
+        Args:
+            is_ice_period: 是否为冰期
+
+        Returns:
+            ConfiguredODDAnalyzer
+        """
+        if is_ice_period:
+            # 冰期时收紧约束
+            self.params['max_level_rate'] = 0.10  # 降低变化率
+            self.params['max_flow_disturbance'] = 10.0  # 降低扰动率
+            self.params['ice_period_min_temp'] = -2.0  # 允许更低温度
+
+        return self.build()
+
+
+def create_ycjl_odd_analyzer(
+    sensors: Optional[List[Any]] = None,
+    actuators: Optional[List[Any]] = None,
+    is_ice_period: bool = False
+) -> ConfiguredODDAnalyzer:
+    """
+    创建引绰济辽工程ODD分析器（便捷函数）
+
+    Args:
+        sensors: 传感器列表（可选）
+        actuators: 执行器列表（可选）
+        is_ice_period: 是否为冰期
+
+    Returns:
+        ConfiguredODDAnalyzer
+    """
+    builder = YCJLODDBuilder()
+
+    if sensors:
+        for sensor in sensors:
+            builder.add_sensor(sensor)
+
+    if actuators:
+        for actuator in actuators:
+            builder.add_actuator(actuator)
+
+    # 添加默认通信配置
+    builder.set_communication(CommunicationProfile(
+        network_type="5G专网",
+        bandwidth=100.0,
+        latency_typical=0.1,
+        latency_max=1.5,
+        packet_loss_rate=0.001,
+        availability=0.9999,
+        has_backup=True,
+        backup_type="光纤"
+    ))
+
+    return builder.build_with_ice_mode(is_ice_period)
+
+
+# ==========================================
 # 导出
 # ==========================================
 
@@ -1929,5 +2523,11 @@ __all__ = [
     # 世界模型约束
     'WorldModelConstraint',
     'WorldModelODDEnvelope',
-    'create_world_model_envelope'
+    'create_world_model_envelope',
+    # 设备配置自动提取器 (v2.1)
+    'DeviceProfileExtractor',
+    'build_odd_from_devices',
+    # YCJL专用构建器 (v2.1)
+    'YCJLODDBuilder',
+    'create_ycjl_odd_analyzer'
 ]
