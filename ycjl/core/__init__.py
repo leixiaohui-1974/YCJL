@@ -150,7 +150,19 @@ from .odd_analyzer import (
     # 便捷函数
     calculate_odd_reliability,
     determine_autonomy_from_score,
-    create_water_odd_analyzer
+    create_water_odd_analyzer,
+    # ODD自动构建器 (从设备配置推导)
+    SensorProfile,
+    ActuatorProfile,
+    ChannelProfile,
+    CommunicationProfile,
+    ODDProfileBuilder,
+    ConfiguredODDAnalyzer,
+    build_odd_from_config,
+    # 世界模型约束
+    WorldModelConstraint,
+    WorldModelODDEnvelope,
+    create_world_model_envelope
 )
 
 # ==========================================
@@ -243,5 +255,17 @@ __all__ = [
     'WaterNetworkODDAnalyzer',
     'calculate_odd_reliability',
     'determine_autonomy_from_score',
-    'create_water_odd_analyzer'
+    'create_water_odd_analyzer',
+    # ODD自动构建器
+    'SensorProfile',
+    'ActuatorProfile',
+    'ChannelProfile',
+    'CommunicationProfile',
+    'ODDProfileBuilder',
+    'ConfiguredODDAnalyzer',
+    'build_odd_from_config',
+    # 世界模型约束
+    'WorldModelConstraint',
+    'WorldModelODDEnvelope',
+    'create_world_model_envelope'
 ]

@@ -1061,6 +1061,839 @@ def create_water_odd_analyzer(
 
 
 # ==========================================
+# ODD自动构建器 - 从设备配置推导ODD边界
+# ==========================================
+
+@dataclass
+class SensorProfile:
+    """
+    传感器配置描述
+
+    用于从传感器参数自动推导可观性边界
+    """
+    name: str                               # 传感器名称
+    sensor_type: str                        # 类型: level, flow, pressure, temperature
+    position: str                           # 安装位置
+
+    # 测量特性
+    range_min: float = 0.0                  # 量程下限
+    range_max: float = 100.0                # 量程上限
+    accuracy: float = 0.01                  # 精度 (绝对值)
+    accuracy_percent: float = 0.1           # 精度 (百分比)
+    resolution: float = 0.001               # 分辨率
+
+    # 动态特性
+    time_constant: float = 0.5              # 时间常数 (s)
+    sampling_rate: float = 1.0              # 采样率 (Hz)
+
+    # 环境适应性
+    temp_range: Tuple[float, float] = (-20, 60)  # 工作温度范围
+    ip_rating: str = "IP68"                 # 防护等级
+
+    # 可靠性
+    mtbf: float = 50000                     # 平均故障间隔 (h)
+    is_redundant: bool = False              # 是否有冗余
+    redundancy_count: int = 1               # 冗余数量
+
+    def get_observability_contribution(self) -> float:
+        """计算对可观性的贡献度 (0-1)"""
+        # 基础分
+        base = 0.7
+
+        # 精度加成
+        if self.accuracy_percent < 0.5:
+            base += 0.1
+        elif self.accuracy_percent > 2.0:
+            base -= 0.2
+
+        # 冗余加成
+        if self.redundancy_count >= 2:
+            base += 0.1
+        elif self.redundancy_count >= 3:
+            base += 0.15
+
+        # 时间常数惩罚
+        if self.time_constant > 2.0:
+            base -= 0.1
+
+        return min(1.0, max(0.0, base))
+
+
+@dataclass
+class ActuatorProfile:
+    """
+    执行器配置描述
+
+    用于从执行器参数自动推导可控性边界
+    """
+    name: str                               # 执行器名称
+    actuator_type: str                      # 类型: gate, valve, pump
+    position: str                           # 安装位置
+
+    # 行程与量程
+    stroke_min: float = 0.0                 # 最小开度
+    stroke_max: float = 1.0                 # 最大开度
+    max_opening: float = 6.0                # 最大开度 (物理量, m)
+
+    # 速率特性
+    max_rate: float = 0.01                  # 最大速率 (%/s)
+    min_step: float = 0.005                 # 最小步进
+
+    # 死区与精度
+    dead_band: float = 0.005                # 死区
+    positioning_accuracy: float = 0.01      # 定位精度
+
+    # 响应特性
+    response_time: float = 5.0              # 响应时间 (s)
+    settling_time: float = 10.0             # 稳定时间 (s)
+
+    # 力矩与负载
+    max_torque: float = 1000                # 最大力矩 (N·m)
+    stall_protection: bool = True           # 堵转保护
+
+    # 可靠性
+    mtbf: float = 30000                     # 平均故障间隔 (h)
+    is_redundant: bool = False              # 是否有备用
+    backup_mode: str = "manual"             # 备用模式
+
+    def get_controllability_contribution(self) -> float:
+        """计算对可控性的贡献度 (0-1)"""
+        base = 0.7
+
+        # 死区惩罚
+        if self.dead_band > 0.02:
+            base -= 0.15
+        elif self.dead_band > 0.01:
+            base -= 0.05
+
+        # 响应时间惩罚
+        if self.response_time > 30:
+            base -= 0.2
+        elif self.response_time > 10:
+            base -= 0.1
+
+        # 速率加成
+        if self.max_rate > 0.02:
+            base += 0.1
+
+        # 冗余加成
+        if self.is_redundant:
+            base += 0.1
+
+        return min(1.0, max(0.0, base))
+
+
+@dataclass
+class ChannelProfile:
+    """
+    渠道/管道配置描述
+
+    用于推导动力学边界
+    """
+    name: str
+    channel_type: str                       # channel, pipeline, tunnel
+    length: float                           # 长度 (m)
+    diameter: float = 0.0                   # 直径/水力半径 (m)
+    bottom_width: float = 0.0               # 底宽 (明渠)
+    side_slope: float = 0.0                 # 边坡系数
+
+    # 水力参数
+    design_flow: float = 0.0                # 设计流量
+    max_flow: float = 0.0                   # 最大流量
+    min_flow: float = 0.0                   # 最小流量
+    design_velocity: float = 0.0            # 设计流速
+
+    # 坡降与糙率
+    bed_slope: float = 0.0001               # 底坡
+    manning_n: float = 0.014                # 糙率
+
+    # 水位边界
+    normal_level: float = 0.0               # 正常水位
+    max_level: float = 0.0                  # 最高水位
+    min_level: float = 0.0                  # 最低水位
+
+
+@dataclass
+class CommunicationProfile:
+    """
+    通信配置描述
+
+    用于推导数字化支撑边界
+    """
+    network_type: str = "5G"                # 网络类型
+    bandwidth: float = 100.0                # 带宽 (Mbps)
+    latency_typical: float = 0.1            # 典型时延 (s)
+    latency_max: float = 1.0                # 最大时延 (s)
+    packet_loss_rate: float = 0.001         # 丢包率
+    availability: float = 0.9999            # 可用率
+
+    # 冗余
+    has_backup: bool = True                 # 是否有备份链路
+    backup_type: str = "4G"                 # 备份类型
+
+    # 边缘计算
+    edge_compute_available: bool = True     # 边缘计算可用
+    edge_response_time: float = 0.01        # 边缘响应时间 (s)
+
+
+class ODDProfileBuilder:
+    """
+    ODD边界自动构建器
+
+    从传感器、执行器、渠道、通信配置自动推导ODD边界。
+    这是ODD从"手动定义"到"自动推导"的核心组件。
+    """
+
+    def __init__(self, system_name: str):
+        self.system_name = system_name
+        self.sensors: List[SensorProfile] = []
+        self.actuators: List[ActuatorProfile] = []
+        self.channels: List[ChannelProfile] = []
+        self.communication: Optional[CommunicationProfile] = None
+
+        # 推导的边界
+        self._boundaries: List[ODDBoundary] = []
+        self._observability: Optional[ObservabilityMetrics] = None
+        self._controllability: Optional[ControllabilityMetrics] = None
+
+    def add_sensor(self, sensor: SensorProfile):
+        """添加传感器配置"""
+        self.sensors.append(sensor)
+
+    def add_actuator(self, actuator: ActuatorProfile):
+        """添加执行器配置"""
+        self.actuators.append(actuator)
+
+    def add_channel(self, channel: ChannelProfile):
+        """添加渠道配置"""
+        self.channels.append(channel)
+
+    def set_communication(self, comm: CommunicationProfile):
+        """设置通信配置"""
+        self.communication = comm
+
+    def build(self) -> Tuple[List[ODDBoundary], ObservabilityMetrics, ControllabilityMetrics]:
+        """
+        构建ODD边界
+
+        Returns:
+            (边界列表, 可观性指标, 可控性指标)
+        """
+        self._boundaries = []
+
+        # 1. 从传感器推导可观性和设备边界
+        self._build_sensor_boundaries()
+
+        # 2. 从执行器推导可控性和设备边界
+        self._build_actuator_boundaries()
+
+        # 3. 从渠道推导动力学边界
+        self._build_channel_boundaries()
+
+        # 4. 从通信推导数字化边界
+        self._build_communication_boundaries()
+
+        # 5. 计算综合可观性/可控性
+        self._compute_observability()
+        self._compute_controllability()
+
+        return self._boundaries, self._observability, self._controllability
+
+    def _build_sensor_boundaries(self):
+        """从传感器配置推导边界"""
+        if not self.sensors:
+            return
+
+        # 统计传感器类型
+        level_sensors = [s for s in self.sensors if s.sensor_type == 'level']
+        flow_sensors = [s for s in self.sensors if s.sensor_type == 'flow']
+
+        # 水位测量精度边界
+        if level_sensors:
+            best_accuracy = min(s.accuracy for s in level_sensors)
+            worst_accuracy = max(s.accuracy for s in level_sensors)
+
+            self._boundaries.append(ODDBoundary(
+                name="level_sensor_accuracy",
+                dimension=ODDDimension.INFRASTRUCTURE,
+                description="水位传感器精度要求",
+                unit="m",
+                min_value=0,
+                max_value=worst_accuracy * 3,  # 3倍精度作为边界
+                nominal_value=best_accuracy,
+                constraint_type=ConstraintType.HARD,
+                violation_severity=ViolationSeverity.MAJOR
+            ))
+
+            # 水位变化率边界（基于采样率和精度）
+            max_rate = min(s.accuracy / s.time_constant for s in level_sensors)
+            self._boundaries.append(ODDBoundary(
+                name="level_rate_limit",
+                dimension=ODDDimension.DYNAMICS,
+                description="可观测的水位变化率上限",
+                unit="m/s",
+                min_value=-max_rate * 10,
+                max_value=max_rate * 10,
+                constraint_type=ConstraintType.HARD,
+                violation_severity=ViolationSeverity.MAJOR
+            ))
+
+        # 流量测量边界
+        if flow_sensors:
+            min_flow = max(s.range_min for s in flow_sensors)
+            max_flow = min(s.range_max for s in flow_sensors)
+
+            self._boundaries.append(ODDBoundary(
+                name="flow_measurement_range",
+                dimension=ODDDimension.ENVIRONMENT,
+                description="可测量流量范围",
+                unit="m³/s",
+                min_value=min_flow,
+                max_value=max_flow,
+                constraint_type=ConstraintType.HARD,
+                violation_severity=ViolationSeverity.MAJOR
+            ))
+
+    def _build_actuator_boundaries(self):
+        """从执行器配置推导边界"""
+        if not self.actuators:
+            return
+
+        gates = [a for a in self.actuators if a.actuator_type == 'gate']
+        valves = [a for a in self.actuators if a.actuator_type == 'valve']
+        pumps = [a for a in self.actuators if a.actuator_type == 'pump']
+
+        # 闸门死区边界
+        if gates:
+            max_deadband = max(g.dead_band for g in gates)
+            max_response = max(g.response_time for g in gates)
+
+            self._boundaries.append(ODDBoundary(
+                name="gate_deadzone_limit",
+                dimension=ODDDimension.INFRASTRUCTURE,
+                description="闸门死区上限",
+                unit="-",
+                min_value=0,
+                max_value=max_deadband * 2,
+                nominal_value=max_deadband,
+                constraint_type=ConstraintType.SOFT,
+                violation_severity=ViolationSeverity.MINOR
+            ))
+
+            self._boundaries.append(ODDBoundary(
+                name="gate_response_limit",
+                dimension=ODDDimension.INFRASTRUCTURE,
+                description="闸门响应时间上限",
+                unit="s",
+                min_value=0,
+                max_value=max_response * 2,
+                nominal_value=max_response,
+                constraint_type=ConstraintType.SOFT,
+                violation_severity=ViolationSeverity.MINOR
+            ))
+
+            # 控制步长边界（基于最大速率）
+            min_rate = min(g.max_rate for g in gates)
+            self._boundaries.append(ODDBoundary(
+                name="min_control_interval",
+                dimension=ODDDimension.DYNAMICS,
+                description="最小控制间隔",
+                unit="s",
+                min_value=1.0 / min_rate if min_rate > 0 else 100,
+                max_value=3600,
+                constraint_type=ConstraintType.ADVISORY,
+                violation_severity=ViolationSeverity.WARNING
+            ))
+
+    def _build_channel_boundaries(self):
+        """从渠道配置推导动力学边界"""
+        if not self.channels:
+            return
+
+        for channel in self.channels:
+            # 流量边界
+            if channel.max_flow > 0:
+                self._boundaries.append(ODDBoundary(
+                    name=f"{channel.name}_flow_range",
+                    dimension=ODDDimension.ENVIRONMENT,
+                    description=f"{channel.name}流量范围",
+                    unit="m³/s",
+                    min_value=channel.min_flow,
+                    max_value=channel.max_flow,
+                    nominal_value=channel.design_flow,
+                    constraint_type=ConstraintType.HARD,
+                    violation_severity=ViolationSeverity.MAJOR
+                ))
+
+            # 水位边界
+            if channel.max_level > 0:
+                self._boundaries.append(ODDBoundary(
+                    name=f"{channel.name}_level_range",
+                    dimension=ODDDimension.ENVIRONMENT,
+                    description=f"{channel.name}水位范围",
+                    unit="m",
+                    min_value=channel.min_level,
+                    max_value=channel.max_level,
+                    nominal_value=channel.normal_level,
+                    constraint_type=ConstraintType.HARD,
+                    violation_severity=ViolationSeverity.CRITICAL
+                ))
+
+            # 弗劳德数边界（保持缓流）
+            if channel.design_velocity > 0 and channel.diameter > 0:
+                # Fr = v / sqrt(g * h)
+                g = 9.81
+                fr_design = channel.design_velocity / np.sqrt(g * channel.diameter)
+                self._boundaries.append(ODDBoundary(
+                    name=f"{channel.name}_froude",
+                    dimension=ODDDimension.DYNAMICS,
+                    description=f"{channel.name}弗劳德数",
+                    unit="-",
+                    min_value=0,
+                    max_value=0.9,  # 缓流上限
+                    nominal_value=fr_design,
+                    constraint_type=ConstraintType.HARD,
+                    violation_severity=ViolationSeverity.CRITICAL
+                ))
+
+    def _build_communication_boundaries(self):
+        """从通信配置推导数字化边界"""
+        if not self.communication:
+            # 使用默认值
+            self._boundaries.append(ODDBoundary(
+                name="comm_latency",
+                dimension=ODDDimension.DIGITAL,
+                description="通信时延",
+                unit="s",
+                min_value=0,
+                max_value=1.5,
+                constraint_type=ConstraintType.HARD,
+                violation_severity=ViolationSeverity.MAJOR
+            ))
+            return
+
+        comm = self.communication
+
+        self._boundaries.append(ODDBoundary(
+            name="comm_latency",
+            dimension=ODDDimension.DIGITAL,
+            description="通信时延",
+            unit="s",
+            min_value=0,
+            max_value=comm.latency_max,
+            nominal_value=comm.latency_typical,
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.MAJOR
+        ))
+
+        self._boundaries.append(ODDBoundary(
+            name="packet_loss",
+            dimension=ODDDimension.DIGITAL,
+            description="丢包率",
+            unit="%",
+            min_value=0,
+            max_value=comm.packet_loss_rate * 100 * 10,  # 10倍作为边界
+            nominal_value=comm.packet_loss_rate * 100,
+            constraint_type=ConstraintType.HARD,
+            violation_severity=ViolationSeverity.MAJOR
+        ))
+
+    def _compute_observability(self):
+        """计算综合可观性"""
+        if not self.sensors:
+            self._observability = ObservabilityMetrics()
+            return
+
+        # 传感器覆盖率（假设需要水位和流量两种）
+        sensor_types = set(s.sensor_type for s in self.sensors)
+        required_types = {'level', 'flow'}
+        coverage = len(sensor_types & required_types) / len(required_types)
+
+        # 传感器健康度（基于贡献度平均）
+        health = np.mean([s.get_observability_contribution() for s in self.sensors])
+
+        # 冗余度
+        redundancy = max(s.redundancy_count for s in self.sensors)
+
+        # 数据质量（基于精度）
+        avg_accuracy_pct = np.mean([s.accuracy_percent for s in self.sensors])
+        data_quality = max(0, 1 - avg_accuracy_pct / 5)  # 5%精度时质量为0
+
+        # 通信可靠性
+        comm_reliability = 1.0
+        if self.communication:
+            comm_reliability = self.communication.availability
+
+        self._observability = ObservabilityMetrics(
+            sensor_coverage=coverage,
+            sensor_health=health,
+            data_quality=data_quality,
+            communication_reliability=comm_reliability,
+            redundancy_level=redundancy
+        )
+
+    def _compute_controllability(self):
+        """计算综合可控性"""
+        if not self.actuators:
+            self._controllability = ControllabilityMetrics()
+            return
+
+        # 执行器可用率
+        availability = 1.0  # 假设全部可用
+
+        # 执行器健康度
+        health = np.mean([a.get_controllability_contribution() for a in self.actuators])
+
+        # 死区比例
+        avg_deadband = np.mean([a.dead_band for a in self.actuators])
+
+        # 响应延迟
+        max_response = max(a.response_time for a in self.actuators)
+
+        self._controllability = ControllabilityMetrics(
+            actuator_availability=availability,
+            actuator_health=health,
+            control_authority=1.0,
+            response_capability=health,
+            dead_zone_ratio=avg_deadband,
+            response_delay=max_response,
+            max_response_delay=max_response * 2
+        )
+
+    def create_analyzer(self) -> 'ConfiguredODDAnalyzer':
+        """
+        创建配置好的ODD分析器
+
+        Returns:
+            ConfiguredODDAnalyzer实例
+        """
+        boundaries, obs, ctrl = self.build()
+        return ConfiguredODDAnalyzer(
+            self.system_name,
+            boundaries,
+            obs,
+            ctrl
+        )
+
+
+class ConfiguredODDAnalyzer(BaseODDAnalyzer):
+    """
+    通过配置构建的ODD分析器
+
+    与WaterNetworkODDAnalyzer不同，此分析器的边界
+    完全由ODDProfileBuilder从设备配置推导
+    """
+
+    def __init__(self,
+                 system_name: str,
+                 boundaries: List[ODDBoundary],
+                 observability: ObservabilityMetrics,
+                 controllability: ControllabilityMetrics):
+        self._preset_boundaries = boundaries
+        self._preset_observability = observability
+        self._preset_controllability = controllability
+        self._current_state: Dict[str, float] = {}
+        super().__init__(system_name)
+
+    def _initialize_boundaries(self):
+        """初始化边界（使用预设）"""
+        for boundary in self._preset_boundaries:
+            self.add_boundary(boundary)
+
+    def get_current_state(self) -> Dict[str, float]:
+        return self._current_state.copy()
+
+    def set_state(self, state: Dict[str, float]):
+        self._current_state = state.copy()
+
+    def analyze_with_preset(self,
+                           current_state: Dict[str, float]) -> ODDReport:
+        """使用预设的可观性/可控性进行分析"""
+        self.set_state(current_state)
+        return self.analyze(
+            current_state,
+            self._preset_observability,
+            self._preset_controllability
+        )
+
+
+# ==========================================
+# 世界模型约束接口
+# ==========================================
+
+@dataclass
+class WorldModelConstraint:
+    """
+    世界模型生成约束
+
+    定义数字孪生/仿真模型必须遵守的边界条件。
+    确保生成的场景在ODD范围内。
+    """
+    name: str
+    parameter: str                          # 参数名称
+    min_value: float                        # 最小值
+    max_value: float                        # 最大值
+    nominal_value: Optional[float] = None   # 标称值
+    distribution: str = "uniform"           # 分布类型: uniform, normal, truncated_normal
+    std_dev: Optional[float] = None         # 标准差（正态分布时）
+
+    def sample(self, rng: Optional[np.random.Generator] = None) -> float:
+        """
+        在约束范围内采样
+
+        Args:
+            rng: 随机数生成器
+
+        Returns:
+            采样值
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+
+        if self.distribution == "uniform":
+            return rng.uniform(self.min_value, self.max_value)
+
+        elif self.distribution == "normal":
+            if self.nominal_value is None or self.std_dev is None:
+                return rng.uniform(self.min_value, self.max_value)
+            value = rng.normal(self.nominal_value, self.std_dev)
+            return np.clip(value, self.min_value, self.max_value)
+
+        elif self.distribution == "truncated_normal":
+            if self.nominal_value is None or self.std_dev is None:
+                return rng.uniform(self.min_value, self.max_value)
+            # 截断正态分布
+            while True:
+                value = rng.normal(self.nominal_value, self.std_dev)
+                if self.min_value <= value <= self.max_value:
+                    return value
+
+        return rng.uniform(self.min_value, self.max_value)
+
+    def is_valid(self, value: float) -> bool:
+        """检查值是否在约束范围内"""
+        return self.min_value <= value <= self.max_value
+
+
+class WorldModelODDEnvelope:
+    """
+    世界模型ODD包络
+
+    为数字孪生和仿真引擎提供ODD约束接口。
+    确保模型生成的所有场景都在设计运行域内。
+    """
+
+    def __init__(self, analyzer: BaseODDAnalyzer):
+        self.analyzer = analyzer
+        self._constraints: Dict[str, WorldModelConstraint] = {}
+        self._build_constraints()
+
+    def _build_constraints(self):
+        """从ODD边界构建世界模型约束"""
+        for name, boundary in self.analyzer._boundaries.items():
+            if boundary.min_value is not None and boundary.max_value is not None:
+                # 确定分布类型
+                if boundary.nominal_value is not None:
+                    distribution = "truncated_normal"
+                    range_val = boundary.max_value - boundary.min_value
+                    std_dev = range_val / 6  # 99.7%落在范围内
+                else:
+                    distribution = "uniform"
+                    std_dev = None
+
+                self._constraints[name] = WorldModelConstraint(
+                    name=boundary.description,
+                    parameter=name,
+                    min_value=boundary.min_value,
+                    max_value=boundary.max_value,
+                    nominal_value=boundary.nominal_value,
+                    distribution=distribution,
+                    std_dev=std_dev
+                )
+
+    def get_constraint(self, parameter: str) -> Optional[WorldModelConstraint]:
+        """获取指定参数的约束"""
+        return self._constraints.get(parameter)
+
+    def get_all_constraints(self) -> Dict[str, WorldModelConstraint]:
+        """获取所有约束"""
+        return self._constraints.copy()
+
+    def sample_scenario(self,
+                       parameters: Optional[List[str]] = None,
+                       rng: Optional[np.random.Generator] = None) -> Dict[str, float]:
+        """
+        采样一个符合ODD的场景
+
+        Args:
+            parameters: 要采样的参数列表，None表示全部
+            rng: 随机数生成器
+
+        Returns:
+            {参数名: 采样值}
+        """
+        if rng is None:
+            rng = np.random.default_rng()
+
+        if parameters is None:
+            parameters = list(self._constraints.keys())
+
+        scenario = {}
+        for param in parameters:
+            if param in self._constraints:
+                scenario[param] = self._constraints[param].sample(rng)
+
+        return scenario
+
+    def validate_scenario(self, scenario: Dict[str, float]) -> Tuple[bool, List[str]]:
+        """
+        验证场景是否在ODD内
+
+        Args:
+            scenario: {参数名: 值}
+
+        Returns:
+            (是否有效, 违规参数列表)
+        """
+        violations = []
+
+        for param, value in scenario.items():
+            constraint = self._constraints.get(param)
+            if constraint and not constraint.is_valid(value):
+                violations.append(
+                    f"{param}: {value} 超出范围 [{constraint.min_value}, {constraint.max_value}]"
+                )
+
+        return len(violations) == 0, violations
+
+    def clip_scenario(self, scenario: Dict[str, float]) -> Dict[str, float]:
+        """
+        将场景裁剪到ODD范围内
+
+        Args:
+            scenario: 原始场景
+
+        Returns:
+            裁剪后的场景
+        """
+        clipped = {}
+        for param, value in scenario.items():
+            constraint = self._constraints.get(param)
+            if constraint:
+                clipped[param] = np.clip(value, constraint.min_value, constraint.max_value)
+            else:
+                clipped[param] = value
+        return clipped
+
+    def get_safe_perturbation_range(self,
+                                   current_state: Dict[str, float],
+                                   parameter: str,
+                                   margin: float = 0.1) -> Tuple[float, float]:
+        """
+        获取安全扰动范围
+
+        在当前状态基础上，确定某参数可以安全扰动的范围
+
+        Args:
+            current_state: 当前状态
+            parameter: 参数名
+            margin: 安全裕度 (0-1)
+
+        Returns:
+            (最小扰动, 最大扰动)
+        """
+        constraint = self._constraints.get(parameter)
+        if not constraint:
+            return (0, 0)
+
+        current = current_state.get(parameter, constraint.nominal_value or 0)
+        range_val = constraint.max_value - constraint.min_value
+        safe_margin = range_val * margin
+
+        min_delta = constraint.min_value + safe_margin - current
+        max_delta = constraint.max_value - safe_margin - current
+
+        return (min_delta, max_delta)
+
+    def summary(self) -> str:
+        """生成约束摘要"""
+        lines = [
+            "=" * 60,
+            f"世界模型ODD包络 - {self.analyzer.system_name}",
+            "=" * 60,
+            f"约束参数数量: {len(self._constraints)}",
+            "",
+            "参数约束列表:"
+        ]
+
+        for name, constraint in self._constraints.items():
+            nom = f", 标称={constraint.nominal_value:.3f}" if constraint.nominal_value else ""
+            lines.append(
+                f"  {name}: [{constraint.min_value:.3f}, {constraint.max_value:.3f}]{nom}"
+            )
+
+        lines.append("=" * 60)
+        return "\n".join(lines)
+
+
+# ==========================================
+# 便捷函数（扩展）
+# ==========================================
+
+def build_odd_from_config(
+    system_name: str,
+    sensors: List[SensorProfile],
+    actuators: List[ActuatorProfile],
+    channels: Optional[List[ChannelProfile]] = None,
+    communication: Optional[CommunicationProfile] = None
+) -> ConfiguredODDAnalyzer:
+    """
+    从配置构建ODD分析器（便捷函数）
+
+    Args:
+        system_name: 系统名称
+        sensors: 传感器配置列表
+        actuators: 执行器配置列表
+        channels: 渠道配置列表
+        communication: 通信配置
+
+    Returns:
+        ConfiguredODDAnalyzer
+    """
+    builder = ODDProfileBuilder(system_name)
+
+    for sensor in sensors:
+        builder.add_sensor(sensor)
+
+    for actuator in actuators:
+        builder.add_actuator(actuator)
+
+    if channels:
+        for channel in channels:
+            builder.add_channel(channel)
+
+    if communication:
+        builder.set_communication(communication)
+
+    return builder.create_analyzer()
+
+
+def create_world_model_envelope(
+    analyzer: BaseODDAnalyzer
+) -> WorldModelODDEnvelope:
+    """
+    创建世界模型ODD包络（便捷函数）
+
+    Args:
+        analyzer: ODD分析器
+
+    Returns:
+        WorldModelODDEnvelope
+    """
+    return WorldModelODDEnvelope(analyzer)
+
+
+# ==========================================
 # 导出
 # ==========================================
 
@@ -1084,5 +1917,17 @@ __all__ = [
     # 便捷函数
     'calculate_odd_reliability',
     'determine_autonomy_from_score',
-    'create_water_odd_analyzer'
+    'create_water_odd_analyzer',
+    # ODD自动构建器
+    'SensorProfile',
+    'ActuatorProfile',
+    'ChannelProfile',
+    'CommunicationProfile',
+    'ODDProfileBuilder',
+    'ConfiguredODDAnalyzer',
+    'build_odd_from_config',
+    # 世界模型约束
+    'WorldModelConstraint',
+    'WorldModelODDEnvelope',
+    'create_world_model_envelope'
 ]
